@@ -13,8 +13,9 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [selectedRole, setSelectedRole] = useState<'admin' | 'teacher' | 'student'>('student');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const [showMission, setShowMission] = useState(true);
-  const { login, isLoading } = useAuth();
+  const { login } = useAuth();
 
   React.useEffect(() => {
     const interval = setInterval(() => {
@@ -32,9 +33,39 @@ export default function LoginPage() {
       return;
     }
 
-    const success = await login(email, password, selectedRole);
-    if (!success) {
-      setError('Invalid credentials. Please check your email, password, and selected role.');
+    setIsLoading(true);
+
+    try {
+      // Call the login API
+      const response = await fetch('http://localhost:5000/api/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          password,
+          role: selectedRole
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Invalid credentials. Please check your email, password, and selected role.');
+      }
+
+      // If login is successful, call the auth context login function
+      // This should store the token and user data
+      const success = await login(email, password, selectedRole);
+      
+      if (!success) {
+        setError('Login failed. Please try again.');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred during login. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
