@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '../types';
-import { mockUsers } from '../data/mockData';
 
 interface AuthContextType {
   user: User | null;
@@ -18,7 +17,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Check if user is already logged in
     const savedUser = localStorage.getItem('currentUser');
-    if (savedUser) {
+    const savedToken = localStorage.getItem('authToken');
+    
+    if (savedUser && savedToken) {
       setUser(JSON.parse(savedUser));
     }
     setIsLoading(false);
@@ -27,28 +28,56 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (email: string, password: string, role: 'admin' | 'teacher' | 'student'): Promise<boolean> => {
     setIsLoading(true);
     
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Mock authentication - in real app, this would be an API call
-    const foundUser = mockUsers.find(u => u.email === email && u.role === role);
-    
-    if (foundUser) {
-      // Update user to be online
-      const loggedInUser = { ...foundUser, isOnline: true, lastActive: new Date() };
+    try {
+      // Call the backend API
+      const response = await fetch('http://localhost:5000/api/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          password,
+          role
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        setIsLoading(false);
+        return false;
+      }
+
+      // Create user object from API response
+      const loggedInUser: User = {
+        id: data.user.id.toString(),
+        name: data.user.name,
+        email: email,
+        role: data.user.role,
+        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${data.user.name}`,
+        isOnline: true,
+        lastActive: new Date()
+      };
+
+      // Store user and token
       setUser(loggedInUser);
       localStorage.setItem('currentUser', JSON.stringify(loggedInUser));
+      localStorage.setItem('authToken', data.token);
+      
       setIsLoading(false);
       return true;
+    } catch (error) {
+      console.error('Login error:', error);
+      setIsLoading(false);
+      return false;
     }
-    
-    setIsLoading(false);
-    return false;
   };
 
   const logout = () => {
     setUser(null);
     localStorage.removeItem('currentUser');
+    localStorage.removeItem('authToken');
   };
 
   return (
