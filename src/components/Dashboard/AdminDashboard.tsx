@@ -89,7 +89,7 @@ export default function AdminDashboard() {
   // Fetch users from auth endpoint (users table with username, email, role, class_name)
   const fetchUsers = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/auth/users');
+      const response = await fetch('http://localhost:5000/api/users');
       const data = await response.json();
       
       if (data.success) {
@@ -114,7 +114,7 @@ export default function AdminDashboard() {
   // Fetch users using getallusers endpoint (different table structure with firstname, sirname)
   const fetchAllUsers = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/users/getallusers');
+      const response = await fetch('http://localhost:5000/api/getallusers');
       const data = await response.json();
       
       if (data.success) {
@@ -218,7 +218,7 @@ export default function AdminDashboard() {
     setIsLoading(true);
 
     try {
-      const response = await fetch('http://localhost:5000/api/auth/newacc', {
+      const response = await fetch('http://localhost:5000/api/newacc', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -270,7 +270,7 @@ export default function AdminDashboard() {
     setIsLoading(true);
 
     try {
-      const response = await fetch(`http://localhost:5000/api/users/edituserdata/${editingUser.id}`, {
+      const response = await fetch(`http://localhost:5000/api/edituserdata/${editingUser.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -320,7 +320,7 @@ export default function AdminDashboard() {
     if (!confirm('Are you sure you want to delete this user?')) return;
 
     try {
-      const response = await fetch(`http://localhost:5000/api/users/deleteuser/${userId}`, {
+      const response = await fetch(`http://localhost:5000/api/deleteuser/${userId}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -360,7 +360,7 @@ export default function AdminDashboard() {
 
   const handleLogoutUser = async (userId: string) => {
     try {
-      const response = await fetch('http://localhost:5000/api/auth/logout', {
+      const response = await fetch('http://localhost:5000/api/logout', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
