@@ -36,31 +36,11 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      // Call the login API
-      const response = await fetch('http://localhost:5000/api/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email,
-          password,
-          role: selectedRole
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Invalid credentials. Please check your email, password, and selected role.');
-      }
-
-      // If login is successful, call the auth context login function
-      // This should store the token and user data
+      // Call the login function from AuthContext which handles the API call
       const success = await login(email, password, selectedRole);
       
       if (!success) {
-        setError('Login failed. Please try again.');
+        setError('Invalid credentials. Please check your email, password, and selected role.');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred during login. Please try again.');

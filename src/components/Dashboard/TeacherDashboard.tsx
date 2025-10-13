@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,15 +38,39 @@ import {
   Filter,
   Search
 } from 'lucide-react';
-import { mockAssignments, mockSubmissions, mockUsers } from '../../data/mockData';
+import { mockAssignments, mockSubmissions } from '../../data/mockData';
 import { useAuth } from '../../contexts/AuthContext';
 import ActivityTimeline from '../Shared/ActivityTimeline';
 import DocumentPreview from '../Shared/DocumentPreview';
 import { mockActivities } from '../../data/mockData';
 import { Assignment, Submission } from '../../types';
+import { useToast } from '@/hooks/use-toast';
+
+interface User {
+  id: string;
+  username: string;
+  firstname?: string;
+  sirname?: string;
+  email: string;
+  role: string;
+  class_name?: string;
+  class?: string;
+  subject?: string;
+  isOnline?: boolean;
+  lastActive?: Date;
+}
+
+interface ActiveUser {
+  id: string;
+  email: string;
+  username: string;
+  role: string;
+  loginTime: string;
+}
 
 export default function TeacherDashboard() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [assignments, setAssignments] = useState(mockAssignments.filter(a => a.teacherId === user?.id));
   const [submissions] = useState(mockSubmissions);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
@@ -54,6 +78,8 @@ export default function TeacherDashboard() {
   const [previewDocument, setPreviewDocument] = useState<Assignment | Submission | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [users, setUsers] = useState<User[]>([]);
+  const [activeUsers, setActiveUsers] = useState<ActiveUser[]>([]);
 
   const [newAssignment, setNewAssignment] = useState({
     title: '',
@@ -64,10 +90,74 @@ export default function TeacherDashboard() {
     documentFile: null as File | null
   });
 
-  const students = mockUsers.filter(u => u.role === 'student');
+  // Fetch all users from backend
+  const fetchUsers = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/getallusers');
+      const data = await response.json();
+      
+      if (data.success) {
+        setUsers(data.users.map((user: any) => ({
+          ...user,
+          username: `${user.firstname || ''} ${user.sirname || ''}`.trim() || user.email.split('@')[0],
+          class_name: user.class,
+          isOnline: false,
+          lastActive: new Date()
+        })));
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    }
+  };
+
+  // Fetch active users from backend
+  const fetchActiveUsers = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/active-users');
+      const data = await response.json();
+      
+      if (data.success) {
+        setActiveUsers(data.users);
+        
+        // Update users list to mark active users as online
+        setUsers(prevUsers => 
+          prevUsers.map(user => ({
+            ...user,
+            isOnline: data.users.some((activeUser: ActiveUser) => activeUser.id === user.id)
+          }))
+        );
+      }
+    } catch (error) {
+      console.error('Error fetching active users:', error);
+    }
+  };
+
+  // Load data on component mount
+  useEffect(() => {
+    fetchUsers();
+    fetchActiveUsers();
+    
+    // Poll active users every 30 seconds
+    const interval = setInterval(fetchActiveUsers, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Filter students and get dynamic data
+  const students = users.filter(u => u.role === 'student');
+  const myStudents = students; // All students for now, could be filtered by teacher's classes
   const mySubmissions = submissions.filter(s => 
     assignments.some(a => a.id === s.assignmentId)
   );
+
+  // Calculate dynamic stats
+  const stats = {
+    myAssignments: assignments.length,
+    totalSubmissions: mySubmissions.length,
+    pendingReviews: mySubmissions.filter(s => s.status === 'submitted').length,
+    onlineStudents: students.filter(s => s.isOnline).length,
+    totalStudents: students.length,
+    totalOnlineUsers: activeUsers.length
+  };
 
   const getInitials = (name: string) => {
     return name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2);
@@ -89,33 +179,72 @@ export default function TeacherDashboard() {
     return diffInDays;
   };
 
-  const handleCreateAssignment = () => {
-    if (!newAssignment.title || !newAssignment.description) return;
+  const handleCreateAssignment = async () => {
+    if (!newAssignment.title || !newAssignment.description) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields",
+        variant: "destructive"
+      });
+      return;
+    }
     
-    const assignment = {
-      id: Date.now().toString(),
-      ...newAssignment,
-      teacherId: user?.id || '',
-      teacherName: user?.name || '',
-      subject: user?.subject || '',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      documentUrl: newAssignment.documentFile ? `/mock-documents/${newAssignment.documentFile.name}` : undefined,
-      documentName: newAssignment.documentFile?.name,
-      documentType: newAssignment.documentFile?.type,
-      isEdited: false
-    };
-    
-    setAssignments([...assignments, assignment]);
-    setNewAssignment({
-      title: '',
-      description: '',
-      instructions: '',
-      class: '',
-      dueDate: new Date(),
-      documentFile: null
-    });
-    setIsCreateAssignmentOpen(false);
+    try {
+      // This would be the actual API call to create assignment
+      // const formData = new FormData();
+      // if (newAssignment.documentFile) {
+      //   formData.append('document', newAssignment.documentFile);
+      // }
+      // formData.append('title', newAssignment.title);
+      // formData.append('description', newAssignment.description);
+      // formData.append('instructions', newAssignment.instructions);
+      // formData.append('class', newAssignment.class);
+      // formData.append('dueDate', newAssignment.dueDate.toISOString());
+      // formData.append('teacherId', user?.id || '');
+      
+      // const response = await fetch('http://localhost:5000/api/create-assignment', {
+      //   method: 'POST',
+      //   body: formData
+      // });
+      
+      const assignment = {
+        id: Date.now().toString(),
+        ...newAssignment,
+        teacherId: user?.id || '',
+        teacherName: user?.name || '',
+        subject: user?.subject || '',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        documentUrl: newAssignment.documentFile ? `/mock-documents/${newAssignment.documentFile.name}` : undefined,
+        documentName: newAssignment.documentFile?.name,
+        documentType: newAssignment.documentFile?.type,
+        isEdited: false
+      };
+      
+      setAssignments([...assignments, assignment]);
+      
+      toast({
+        title: "Success",
+        description: `Assignment "${newAssignment.title}" created successfully!`,
+      });
+      
+      setNewAssignment({
+        title: '',
+        description: '',
+        instructions: '',
+        class: '',
+        dueDate: new Date(),
+        documentFile: null
+      });
+      setIsCreateAssignmentOpen(false);
+    } catch (error) {
+      console.error('Error creating assignment:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create assignment. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -132,6 +261,9 @@ export default function TeacherDashboard() {
     return matchesSearch && matchesStatus;
   });
 
+  // Get unique classes from students
+  const availableClasses = [...new Set(students.map(s => s.class_name).filter(Boolean))];
+
   return (
     <div className="space-y-6">
       {/* Quick Stats */}
@@ -142,7 +274,7 @@ export default function TeacherDashboard() {
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{assignments.length}</div>
+            <div className="text-2xl font-bold">{stats.myAssignments}</div>
             <p className="text-xs text-muted-foreground">Active assignments</p>
           </CardContent>
         </Card>
@@ -153,7 +285,7 @@ export default function TeacherDashboard() {
             <Upload className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{mySubmissions.length}</div>
+            <div className="text-2xl font-bold">{stats.totalSubmissions}</div>
             <p className="text-xs text-muted-foreground">Total submissions</p>
           </CardContent>
         </Card>
@@ -164,9 +296,7 @@ export default function TeacherDashboard() {
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-orange-600">
-              {mySubmissions.filter(s => s.status === 'submitted').length}
-            </div>
+            <div className="text-2xl font-bold text-orange-600">{stats.pendingReviews}</div>
             <p className="text-xs text-muted-foreground">Need attention</p>
           </CardContent>
         </Card>
@@ -177,13 +307,38 @@ export default function TeacherDashboard() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              {students.filter(s => s.isOnline).length}
-            </div>
+            <div className="text-2xl font-bold text-green-600">{stats.onlineStudents}</div>
             <p className="text-xs text-muted-foreground">Currently active</p>
           </CardContent>
         </Card>
       </div>
+
+      {/* School Overview Card */}
+      <Card className="bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800">
+        <CardHeader>
+          <CardTitle className="text-purple-800 dark:text-purple-200">School Overview</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-purple-600">{stats.totalStudents}</div>
+              <p className="text-xs text-purple-600">Total Students</p>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-green-600">{stats.onlineStudents}</div>
+              <p className="text-xs text-green-600">Students Online</p>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-blue-600">{users.filter(u => u.role === 'teacher').length}</div>
+              <p className="text-xs text-blue-600">Total Teachers</p>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-red-600">{stats.totalOnlineUsers}</div>
+              <p className="text-xs text-red-600">All Online</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Content */}
@@ -249,6 +404,9 @@ export default function TeacherDashboard() {
                             <SelectValue placeholder="Select class" />
                           </SelectTrigger>
                           <SelectContent>
+                            {availableClasses.map(className => (
+                              <SelectItem key={className} value={className}>{className}</SelectItem>
+                            ))}
                             <SelectItem value="Grade 10A">Grade 10A</SelectItem>
                             <SelectItem value="Grade 10B">Grade 10B</SelectItem>
                             <SelectItem value="Grade 11A">Grade 11A</SelectItem>
@@ -464,23 +622,23 @@ export default function TeacherDashboard() {
             </TabsContent>
 
             <TabsContent value="students" className="space-y-4">
-              <h3 className="text-lg font-semibold">My Students</h3>
+              <h3 className="text-lg font-semibold">My Students ({stats.totalStudents} total)</h3>
               <ScrollArea className="h-96">
                 {students.map((student) => (
                   <div key={student.id} className="flex items-center justify-between p-3 border rounded-lg mb-2">
                     <div className="flex items-center space-x-3">
                       <Avatar className="h-10 w-10">
                         <AvatarFallback className={student.isOnline ? "bg-green-600 text-white" : "bg-gray-600 text-white"}>
-                          {getInitials(student.name)}
+                          {getInitials(student.username)}
                         </AvatarFallback>
                       </Avatar>
                       <div>
-                        <p className="font-medium">{student.name}</p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">{student.class}</p>
+                        <p className="font-medium">{student.username}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">{student.class_name}</p>
                         <div className="flex items-center gap-1">
                           <div className={`w-2 h-2 rounded-full ${student.isOnline ? 'bg-green-500' : 'bg-gray-400'}`}></div>
                           <span className="text-xs text-gray-500">
-                            {student.isOnline ? 'Online now' : `Last seen ${formatTimeAgo(student.lastActive)}`}
+                            {student.isOnline ? 'Online now' : `Last seen ${formatTimeAgo(student.lastActive || new Date())}`}
                           </span>
                         </div>
                       </div>

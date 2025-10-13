@@ -38,10 +38,23 @@ export interface Submission {
   documentUrl?: string;
   documentName?: string;
   documentType?: string;
-  status: 'submitted' | 'reviewed' | 'graded';
+  status: 'submitted' | 'reviewed' | 'graded' | 'late';
   grade?: number;
   feedback?: string;
   teacherComments: Comment[];
+  isLate?: boolean;
+}
+
+export interface TeacherReport {
+  id: string;
+  teacherId: string;
+  teacherName: string;
+  title: string;
+  description: string;
+  createdAt: string;
+  pdfUrl: string;
+  reportType: 'assignment' | 'student_progress' | 'class_summary' | 'other';
+  isPublic: boolean;
 }
 
 export interface Comment {

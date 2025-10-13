@@ -4,7 +4,7 @@ import { User } from '../types';
 interface AuthContextType {
   user: User | null;
   login: (email: string, password: string, role: 'admin' | 'teacher' | 'student') => Promise<boolean>;
-  logout: () => void;
+  logout: () => Promise<void>;
   isLoading: boolean;
 }
 
@@ -16,11 +16,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Check if user is already logged in
-    const savedUser = localStorage.getItem('currentUser');
-    const savedToken = localStorage.getItem('authToken');
+    const savedUser = localStorage.getItem('user');
+    const savedToken = localStorage.getItem('token');
     
     if (savedUser && savedToken) {
-      setUser(JSON.parse(savedUser));
+      try {
+        const parsedUser = JSON.parse(savedUser);
+        // Reconstruct User object with proper structure
+        const userObj: User = {
+          id: parsedUser.id?.toString() || '',
+          name: parsedUser.username || parsedUser.name || '',
+          email: parsedUser.email || '',
+          role: parsedUser.role || 'student',
+          class: parsedUser.class_name || parsedUser.class,
+          subject: parsedUser.subject,
+          avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${parsedUser.username || parsedUser.name}`,
+          isOnline: true,
+          lastActive: new Date()
+        };
+        setUser(userObj);
+      } catch (error) {
+        console.error('Error parsing saved user:', error);
+        localStorage.removeItem('user');
+        localStorage.removeItem('token');
+      }
     }
     setIsLoading(false);
   }, []);
@@ -29,7 +48,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
     
     try {
-      // Call the backend API
+      // Call the backend API with correct endpoint
       const response = await fetch('http://localhost:5000/api/login', {
         method: 'POST',
         headers: {
@@ -37,33 +56,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         },
         body: JSON.stringify({
           email,
-          password,
-          role
+          password
         }),
       });
 
       const data = await response.json();
 
       if (!response.ok || !data.success) {
+        console.error('Login failed:', data.message);
+        setIsLoading(false);
+        return false;
+      }
+
+      // Check if role matches
+      if (data.user.role !== role) {
+        console.error('Role mismatch:', data.user.role, 'vs', role);
         setIsLoading(false);
         return false;
       }
 
       // Create user object from API response
       const loggedInUser: User = {
-        id: data.user.id.toString(),
-        name: data.user.name,
-        email: email,
-        role: data.user.role,
-        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${data.user.name}`,
+        id: data.user.id?.toString() || '',
+        name: data.user.username || data.user.name || '',
+        email: data.user.email || email,
+        role: data.user.role || role,
+        class: data.user.class_name || data.user.class,
+        subject: data.user.subject,
+        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${data.user.username || data.user.name}`,
         isOnline: true,
         lastActive: new Date()
       };
 
       // Store user and token
       setUser(loggedInUser);
-      localStorage.setItem('currentUser', JSON.stringify(loggedInUser));
-      localStorage.setItem('authToken', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      localStorage.setItem('token', data.token);
+      
+      console.log('Login successful:', loggedInUser);
       
       setIsLoading(false);
       return true;
@@ -74,8 +104,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    const currentUser = user;
+    
+    // Call logout API if user exists
+    if (currentUser) {
+      try {
+        await fetch('http://localhost:5000/api/logout', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ id: currentUser.id }),
+        });
+      } catch (error) {
+        console.error('Logout API error:', error);
+      }
+    }
+
+    // Clear local state and storage
     setUser(null);
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
     localStorage.removeItem('currentUser');
     localStorage.removeItem('authToken');
   };

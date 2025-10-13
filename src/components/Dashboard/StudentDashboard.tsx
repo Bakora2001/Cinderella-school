@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,26 +35,111 @@ import DocumentPreview from '../Shared/DocumentPreview';
 import NotificationPanel from '../Shared/NotificationPanel';
 import { mockActivities, mockNotifications } from '../../data/mockData';
 import { Assignment, Submission } from '../../types';
+import { useToast } from '@/hooks/use-toast';
+
+interface User {
+  id: string;
+  username: string;
+  email: string;
+  role: string;
+  class_name?: string;
+  isOnline?: boolean;
+}
+
+interface ActiveUser {
+  id: string;
+  email: string;
+  username: string;
+  role: string;
+  loginTime: string;
+}
 
 export default function StudentDashboard() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [previewDocument, setPreviewDocument] = useState<Assignment | Submission | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [users, setUsers] = useState<User[]>([]);
+  const [activeUsers, setActiveUsers] = useState<ActiveUser[]>([]);
+  const [assignments, setAssignments] = useState(mockAssignments);
+  const [submissions, setSubmissions] = useState(mockSubmissions);
 
-  // Filter assignments for student's class
-  const myAssignments = mockAssignments.filter(a => a.class === user?.class);
-  const mySubmissions = mockSubmissions.filter(s => s.studentId === user?.id);
+  // Fetch all users from backend
+  const fetchUsers = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/getallusers');
+      const data = await response.json();
+      
+      if (data.success) {
+        setUsers(data.users.map((user: any) => ({
+          ...user,
+          username: `${user.firstname || ''} ${user.sirname || ''}`.trim() || user.email.split('@')[0],
+          class_name: user.class,
+          isOnline: false
+        })));
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    }
+  };
+
+  // Fetch active users from backend
+  const fetchActiveUsers = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/active-users');
+      const data = await response.json();
+      
+      if (data.success) {
+        setActiveUsers(data.users);
+        
+        // Update users list to mark active users as online
+        setUsers(prevUsers => 
+          prevUsers.map(user => ({
+            ...user,
+            isOnline: data.users.some((activeUser: ActiveUser) => activeUser.id === user.id)
+          }))
+        );
+      }
+    } catch (error) {
+      console.error('Error fetching active users:', error);
+    }
+  };
+
+  // Load data on component mount
+  useEffect(() => {
+    fetchUsers();
+    fetchActiveUsers();
+    
+    // Poll active users every 30 seconds
+    const interval = setInterval(fetchActiveUsers, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Filter assignments for student's class - now using dynamic user data
+  const currentStudent = users.find(u => u.id === user?.id);
+  const myAssignments = assignments.filter(a => a.class === (currentStudent?.class_name || user?.class));
+  const mySubmissions = submissions.filter(s => s.studentId === user?.id);
   const myNotifications = mockNotifications.filter(n => n.userId === user?.id);
 
-  const getDaysUntilDue = (dueDate: Date) => {
+  // Calculate dynamic stats
+  const stats = {
+    totalAssignments: myAssignments.length,
+    submitted: mySubmissions.length,
+    pending: myAssignments.length - mySubmissions.length,
+    overdue: myAssignments.filter(a => getDaysUntilDue(a.dueDate) < 0 && !getSubmissionStatus(a.id)).length,
+    onlineClassmates: users.filter(u => u.role === 'student' && u.class_name === currentStudent?.class_name && u.isOnline).length,
+    totalClassmates: users.filter(u => u.role === 'student' && u.class_name === currentStudent?.class_name).length
+  };
+
+  function getDaysUntilDue(dueDate: Date) {
     const now = new Date();
     const diffInDays = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
     return diffInDays;
-  };
+  }
 
   const formatTimeAgo = (date: Date) => {
     const now = new Date();
@@ -77,15 +162,56 @@ export default function StudentDashboard() {
     }
   };
 
-  const handleSubmitAssignment = () => {
+  const handleSubmitAssignment = async () => {
     if (!uploadFile || !selectedAssignment) return;
     
-    // Mock submission creation
-    console.log('Submitting assignment:', selectedAssignment.title, 'with file:', uploadFile.name);
-    
-    setUploadFile(null);
-    setSelectedAssignment(null);
-    setIsUploadOpen(false);
+    try {
+      // Mock API call for assignment submission
+      const formData = new FormData();
+      formData.append('file', uploadFile);
+      formData.append('assignmentId', selectedAssignment.id);
+      formData.append('studentId', user?.id || '');
+      
+      // This would be the actual API call to submit assignment
+      // const response = await fetch('http://localhost:5000/api/submit-assignment', {
+      //   method: 'POST',
+      //   body: formData
+      // });
+      
+      toast({
+        title: "Success",
+        description: `Assignment "${selectedAssignment.title}" submitted successfully!`,
+      });
+      
+      // Mock submission creation for immediate UI update
+      const newSubmission = {
+        id: Date.now().toString(),
+        assignmentId: selectedAssignment.id,
+        studentId: user?.id || '',
+        studentName: user?.name || '',
+        submittedAt: new Date(),
+        status: 'submitted' as const,
+        documentName: uploadFile.name,
+        documentUrl: `/mock-submissions/${uploadFile.name}`,
+        documentType: uploadFile.type,
+        grade: null,
+        feedback: null,
+        teacherComments: []
+      };
+      
+      setSubmissions([...submissions, newSubmission]);
+      
+      setUploadFile(null);
+      setSelectedAssignment(null);
+      setIsUploadOpen(false);
+    } catch (error) {
+      console.error('Error submitting assignment:', error);
+      toast({
+        title: "Error",
+        description: "Failed to submit assignment. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   const filteredAssignments = myAssignments.filter(assignment =>
@@ -95,6 +221,13 @@ export default function StudentDashboard() {
 
   const overdueAssignments = myAssignments.filter(a => getDaysUntilDue(a.dueDate) < 0 && !getSubmissionStatus(a.id));
   const upcomingAssignments = myAssignments.filter(a => getDaysUntilDue(a.dueDate) <= 3 && getDaysUntilDue(a.dueDate) >= 0);
+
+  // Get classmates for display
+  const classmates = users.filter(u => 
+    u.role === 'student' && 
+    u.class_name === currentStudent?.class_name && 
+    u.id !== user?.id
+  );
 
   return (
     <div className="space-y-6">
@@ -106,7 +239,7 @@ export default function StudentDashboard() {
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{myAssignments.length}</div>
+            <div className="text-2xl font-bold">{stats.totalAssignments}</div>
             <p className="text-xs text-muted-foreground">Available assignments</p>
           </CardContent>
         </Card>
@@ -117,7 +250,7 @@ export default function StudentDashboard() {
             <CheckCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{mySubmissions.length}</div>
+            <div className="text-2xl font-bold text-green-600">{stats.submitted}</div>
             <p className="text-xs text-muted-foreground">Completed submissions</p>
           </CardContent>
         </Card>
@@ -128,9 +261,7 @@ export default function StudentDashboard() {
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-orange-600">
-              {myAssignments.length - mySubmissions.length}
-            </div>
+            <div className="text-2xl font-bold text-orange-600">{stats.pending}</div>
             <p className="text-xs text-muted-foreground">Need to submit</p>
           </CardContent>
         </Card>
@@ -141,11 +272,38 @@ export default function StudentDashboard() {
             <AlertCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{overdueAssignments.length}</div>
+            <div className="text-2xl font-bold text-red-600">{stats.overdue}</div>
             <p className="text-xs text-muted-foreground">Past due date</p>
           </CardContent>
         </Card>
       </div>
+
+      {/* Class Info Card */}
+      <Card className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
+        <CardHeader>
+          <CardTitle className="text-blue-800 dark:text-blue-200">My Class: {currentStudent?.class_name || user?.class}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-blue-600">{stats.totalClassmates}</div>
+              <p className="text-xs text-blue-600">Total Classmates</p>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-green-600">{stats.onlineClassmates}</div>
+              <p className="text-xs text-green-600">Online Now</p>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-purple-600">{users.filter(u => u.role === 'teacher').length}</div>
+              <p className="text-xs text-purple-600">Teachers</p>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-red-600">{activeUsers.length}</div>
+              <p className="text-xs text-red-600">School Online</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Alerts */}
       {overdueAssignments.length > 0 && (
@@ -171,9 +329,10 @@ export default function StudentDashboard() {
         {/* Main Content */}
         <div className="lg:col-span-2">
           <Tabs defaultValue="assignments" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="assignments">Assignments</TabsTrigger>
               <TabsTrigger value="submissions">My Submissions</TabsTrigger>
+              <TabsTrigger value="classmates">Classmates</TabsTrigger>
               <TabsTrigger value="help">Help & Instructions</TabsTrigger>
             </TabsList>
 
@@ -386,6 +545,28 @@ export default function StudentDashboard() {
               </ScrollArea>
             </TabsContent>
 
+            <TabsContent value="classmates" className="space-y-4">
+              <h3 className="text-lg font-semibold">My Classmates ({currentStudent?.class_name})</h3>
+              <ScrollArea className="h-96">
+                {classmates.map((classmate) => (
+                  <div key={classmate.id} className="flex items-center justify-between p-3 border rounded-lg mb-2">
+                    <div className="flex items-center space-x-3">
+                      <div className={`w-3 h-3 rounded-full ${classmate.isOnline ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+                      <div>
+                        <p className="font-medium">{classmate.username}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">{classmate.email}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Badge variant={classmate.isOnline ? "default" : "secondary"} className={classmate.isOnline ? "bg-green-600" : ""}>
+                        {classmate.isOnline ? "Online" : "Offline"}
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+              </ScrollArea>
+            </TabsContent>
+
             <TabsContent value="help" className="space-y-4">
               <Card>
                 <CardHeader>
@@ -426,12 +607,12 @@ export default function StudentDashboard() {
                   </div>
 
                   <div>
-                    <h4 className="font-semibold text-sm mb-2">🔔 Notifications</h4>
+                    <h4 className="font-semibold text-sm mb-2">👥 Classmates</h4>
                     <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1 ml-4">
-                      <li>• Check the bell icon for new assignments</li>
-                      <li>• Get notified when teachers post feedback</li>
-                      <li>• Receive deadline reminders</li>
-                      <li>• Stay updated on assignment changes</li>
+                      <li>• View who's online in your class</li>
+                      <li>• See total classmates count</li>
+                      <li>• Connect with online classmates for study groups</li>
+                      <li>• Check class activity and engagement</li>
                     </ul>
                   </div>
 
