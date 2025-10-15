@@ -209,7 +209,7 @@ export default function AdminDashboard() {
     if (!newUser.username || !newUser.email || !newUser.password) {
       toast({
         title: "Error",
-        description: "Please fill in all required fields",
+        description: "Please fill all required fields",
         variant: "destructive"
       });
       return;
