@@ -46,8 +46,8 @@ import SubmissionReport from './SubmissionReport';
 interface User {
   id: string;
   username: string;
-  firstname?: string;
-  sirname?: string;
+  // firstname?: string;
+  // name?: string;
   email: string;
   role: 'admin' | 'teacher' | 'student';
   class_name?: string;
@@ -121,7 +121,7 @@ export default function AdminDashboard() {
         const formattedUsers = data.users.map((user: any) => ({
           ...user,
           id: user.id?.toString() || '',
-          username: `${user.firstname || ''} ${user.sirname || ''}`.trim() || user.email.split('@')[0],
+          username: `${user.username || ''}`.trim() || user.email.split('@')[0],
           class_name: user.class,
           isOnline: false,
           lastActive: new Date()
@@ -129,7 +129,7 @@ export default function AdminDashboard() {
         
         // Merge with existing users from auth endpoint
         setUsers(prevUsers => {
-          const authUsers = prevUsers.filter(u => u.username && !u.firstname);
+          const authUsers = prevUsers.filter(u => u.username);
           const allUsers = [...authUsers, ...formattedUsers];
           
           // Remove duplicates based on email
@@ -179,7 +179,7 @@ export default function AdminDashboard() {
     fetchActiveUsers();
     
     // Poll active users every 30 seconds
-    const interval = setInterval(fetchActiveUsers, 30000);
+    const interval = setInterval(fetchActiveUsers, 3000000);
     return () => clearInterval(interval);
   }, []);
 
@@ -276,8 +276,8 @@ export default function AdminDashboard() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          firstname: editingUser.firstname || editingUser.username.split(' ')[0] || editingUser.username,
-          sirname: editingUser.sirname || editingUser.username.split(' ')[1] || '',
+          // firstname: editingUser.firstname || editingUser.username.split(' ')[0] || editingUser.username,
+          username: editingUser.username || editingUser.username.split(' ')[1] || '',
           email: editingUser.email,
           role: editingUser.role,
           class: editingUser.class_name || editingUser.class || null,
