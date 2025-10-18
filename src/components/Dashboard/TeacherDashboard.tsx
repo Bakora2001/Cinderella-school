@@ -173,9 +173,9 @@ export default function TeacherDashboard() {
     return `${Math.floor(diffInMinutes / 1440)}d ago`;
   };
 
-  const getDaysUntilDue = (dueDate: Date) => {
+  const getDaysUntilDue = (due_date: Date) => {
     const now = new Date();
-    const diffInDays = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    const diffInDays = Math.ceil((due_date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
     return diffInDays;
   };
 
@@ -191,21 +191,24 @@ export default function TeacherDashboard() {
     
     try {
       // This would be the actual API call to create assignment
-      // const formData = new FormData();
-      // if (newAssignment.documentFile) {
-      //   formData.append('document', newAssignment.documentFile);
-      // }
-      // formData.append('title', newAssignment.title);
-      // formData.append('description', newAssignment.description);
-      // formData.append('instructions', newAssignment.instructions);
-      // formData.append('class', newAssignment.class);
-      // formData.append('dueDate', newAssignment.dueDate.toISOString());
-      // formData.append('teacherId', user?.id || '');
+      const formData = new FormData();
+      if (newAssignment.documentFile) {
+        formData.append('document', newAssignment.documentFile);
+      }
+      formData.append('title', newAssignment.title);
+      formData.append('description', newAssignment.description);
+      formData.append('instructions', newAssignment.instructions);
+      formData.append('class_name', newAssignment.class);
+      formData.append('due_date', newAssignment.dueDate.toISOString());
+      formData.append('teacherId', user?.id || '');
       
-      // const response = await fetch('http://localhost:5000/api/create-assignment', {
-      //   method: 'POST',
-      //   body: formData
-      // });
+      const response = await fetch('http://localhost:5000/api/assignments/new', {
+        method: 'POST',
+         headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`, // or wherever you store your JWT
+        },
+        body: formData
+      });
       
       const assignment = {
         id: Date.now().toString(),

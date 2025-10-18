@@ -280,7 +280,7 @@ export default function AdminDashboard() {
           username: editingUser.username || editingUser.username.split(' ')[1] || '',
           email: editingUser.email,
           role: editingUser.role,
-          class: editingUser.class_name || editingUser.class || null,
+          class_name: editingUser.class_name || editingUser.class || null,
         }),
       });
 
