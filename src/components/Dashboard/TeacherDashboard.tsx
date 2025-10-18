@@ -106,7 +106,7 @@ export default function TeacherDashboard() {
         })));
       }
     } catch (error) {
-      console.error('Error fetching users:', error);
+      console.error('Error fetching the users:', error);
     }
   };
 
