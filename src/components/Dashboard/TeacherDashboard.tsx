@@ -82,6 +82,7 @@ export default function TeacherDashboard() {
   const [activeUsers, setActiveUsers] = useState<ActiveUser[]>([]);
 
   const [newAssignment, setNewAssignment] = useState({
+    teacherId:'',
     title: '',
     description: '',
     instructions: '',
@@ -213,7 +214,7 @@ export default function TeacherDashboard() {
       const assignment = {
         id: Date.now().toString(),
         ...newAssignment,
-        teacherId: user?.id || '',
+        teacher_id: user?.id || '',
         teacherName: user?.name || '',
         subject: user?.subject || '',
         createdAt: new Date(),
@@ -232,6 +233,7 @@ export default function TeacherDashboard() {
       });
       
       setNewAssignment({
+        teacherId:'',
         title: '',
         description: '',
         instructions: '',
