@@ -49,25 +49,7 @@ export default function LoginPage() {
     }
   };
 
-  const getDemoCredentials = (role: string) => {
-    switch (role) {
-      case 'admin':
-        return { email: 'admin@cinderella.edu', password: 'admin123' };
-      case 'teacher':
-        return { email: 'john.teacher@cinderella.edu', password: 'teacher123' };
-      case 'student':
-        return { email: 'alice.student@cinderella.edu', password: 'student123' };
-      default:
-        return { email: '', password: '' };
-    }
-  };
 
-  const fillDemoCredentials = (role: 'admin' | 'teacher' | 'student') => {
-    const credentials = getDemoCredentials(role);
-    setEmail(credentials.email);
-    setPassword(credentials.password);
-    setSelectedRole(role);
-  };
 
   const coreValues = [
     {
@@ -195,7 +177,7 @@ export default function LoginPage() {
                 </div>
                 <div>
                   <h1 className="text-3xl font-bold text-gray-300">
-                    Cinderella International School
+                    New Cinderella International School
                   </h1>
                   <p className="text-sm text-gray-300 font-medium mt-1">Assignment Management System</p>
                 </div>
@@ -355,41 +337,6 @@ export default function LoginPage() {
                   </Button>
                 </form>
 
-                {/* Demo Credentials */}
-                <div className="pt-4 border-t border-red-900/30">
-                  <p className="text-sm text-gray-100 text-center mb-3 font-semibold">Quick Demo Access:</p>
-                  <div className="space-y-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => fillDemoCredentials('student')}
-                      className="w-full bg-gray-950/60 border-red-800/50 text-gray-300 hover:bg-red-900/30 hover:border-red-600 hover:text-white h-9 transition-all duration-300"
-                    >
-                      <Users className="h-3.5 w-3.5 mr-2" />
-                      Try Student Demo
-                    </Button>
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => fillDemoCredentials('teacher')}
-                        className="bg-gray-950/60 border-red-800/50 text-gray-300 hover:bg-red-900/30 hover:border-red-600 hover:text-white h-9 transition-all duration-300"
-                      >
-                        <GraduationCap className="h-3.5 w-3.5 mr-1" />
-                        Teacher
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => fillDemoCredentials('admin')}
-                        className="bg-gray-950/60 border-red-800/50 text-gray-300 hover:bg-red-900/30 hover:border-red-600 hover:text-white h-9 transition-all duration-300"
-                      >
-                        <Shield className="h-3.5 w-3.5 mr-1" />
-                        Admin
-                      </Button>
-                    </div>
-                  </div>
-                </div>
               </CardContent>
             </Card>
 

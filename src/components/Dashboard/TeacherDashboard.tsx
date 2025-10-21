@@ -398,123 +398,88 @@ export default function TeacherDashboard() {
     documentFile: null
   });
 
-COMMENTED OUT: Fetch assignments API - not working properly
-const fetchTeacherAssignments = async (showRefreshIndicator = false) => {
-  // Ensure user and user.id exist before making the request
-  if (!user?.id) {
-    console.log('No user ID available', user);
-    return;
-  }
-  
-  if (showRefreshIndicator) {
-    setRefreshing(true);
-  } else {
-    setLoading(true);
-  }
-  
-  try {
-    const token = localStorage.getItem('token');
+  // Helper function to get document type from file path
+  const getDocumentTypeFromPath = (filePath) => {
+    if (!filePath) return 'application/octet-stream';
     
-    if (!token) {
+    const ext = filePath.split('.').pop()?.toLowerCase();
+    const typeMap = {
+      'pdf': 'application/pdf',
+      'doc': 'application/msword',
+      'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'txt': 'text/plain',
+      'jpg': 'image/jpeg',
+      'jpeg': 'image/jpeg',
+      'png': 'image/png',
+      'gif': 'image/gif',
+      'mp4': 'video/mp4',
+      'avi': 'video/x-msvideo',
+      'mov': 'video/quicktime',
+      'wmv': 'video/x-ms-wmv'
+    };
+    return typeMap[ext || ''] || 'application/octet-stream';
+  };
+
+  // Fetch assignments from API
+  const fetchTeacherAssignments = async (showRefreshToast = false) => {
+    if (!user?.id) return;
+    
+    try {
+      setLoading(!showRefreshToast);
+      setRefreshing(showRefreshToast);
+      
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:5000/api/assignments/teacher/${user.id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        // Transform API data to match frontend format
+        const transformedAssignments = data.assignments.map(assignment => ({
+          id: assignment.id.toString(),
+          teacherId: assignment.teacher_id.toString(),
+          teacherName: user?.name || 'Teacher',
+          title: assignment.title,
+          description: assignment.description || '',
+          instructions: assignment.instructions || '',
+          subject: user?.subject || 'General',
+          class: assignment.class_name,
+          dueDate: new Date(assignment.due_date),
+          createdAt: new Date(assignment.created_at),
+          updatedAt: new Date(assignment.updated_at || assignment.created_at),
+          documentUrl: assignment.document_path ? `http://localhost:5000${assignment.document_path}` : null,
+          documentName: assignment.document_path ? assignment.document_path.split('/').pop() : null,
+          documentType: assignment.document_path ? getDocumentTypeFromPath(assignment.document_path) : null,
+          isEdited: new Date(assignment.updated_at || assignment.created_at).getTime() !== new Date(assignment.created_at).getTime()
+        }));
+        
+        setAssignments(transformedAssignments);
+        
+        if (showRefreshToast) {
+          toast({
+            title: "Success",
+            description: `Loaded ${transformedAssignments.length} assignment${transformedAssignments.length !== 1 ? 's' : ''}`,
+          });
+        }
+      } else {
+        throw new Error(data.message || 'Failed to fetch assignments');
+      }
+    } catch (error) {
+      console.error('Error fetching assignments:', error);
       toast({
-        title: "Authentication Error",
-        description: "Please log in again",
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to fetch assignments",
         variant: "destructive"
       });
-      return;
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
-
-    // user.id is already a string from AuthContext
-    const teacherId = user.id;
-    console.log('Fetching assignments for teacher ID:', teacherId);
-    console.log('User object:', user);
-    
-    const response = await fetch(`http://localhost:5000/api/assignments/teacher/${teacherId}`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    });
-    
-    console.log('Response status:', response.status);
-    
-    const data = await response.json();
-    console.log('Response data:', data);
-    
-    if (!response.ok) {
-      throw new Error(data.message || `HTTP error! status: ${response.status}`);
-    }
-    
-    if (data.success) {
-      const formattedAssignments = data.assignments.map(assignment => ({
-        ...assignment,
-        id: assignment.id.toString(),
-        teacherId: assignment.teacher_id,
-        // Use 'name' property from User interface (AuthContext converts username to name)
-        teacherName: user.name || user.email.split('@')[0],
-        subject: user.subject || 'General',
-        class: assignment.class_name,
-        dueDate: new Date(assignment.due_date),
-        createdAt: new Date(assignment.created_at),
-        updatedAt: new Date(assignment.updated_at),
-        documentUrl: assignment.document_path ? `http://localhost:5000${assignment.document_path}` : undefined,
-        documentName: assignment.document_path ? assignment.document_path.split('/').pop() : undefined,
-        documentType: assignment.document_path ? getDocumentType(assignment.document_path) : undefined,
-        isEdited: false
-      }));
-      
-      console.log('Formatted assignments:', formattedAssignments);
-      setAssignments(formattedAssignments);
-      
-      if (showRefreshIndicator) {
-        toast({
-          title: "Refreshed",
-          description: `Updated assignments list (${formattedAssignments.length} assignment${formattedAssignments.length !== 1 ? 's' : ''})`,
-        });
-      } else {
-        toast({
-          title: "Success",
-          description: `Loaded ${formattedAssignments.length} assignment${formattedAssignments.length !== 1 ? 's' : ''}`,
-        });
-      }
-    } else {
-      throw new Error(data.message || "Failed to fetch assignments");
-    }
-  } catch (error) {
-    console.error('Error fetching assignments:', error);
-    toast({
-      title: "Error",
-      description: error instanceof Error ? error.message : "Failed to fetch assignments. Please try again.",
-      variant: "destructive"
-    });
-  } finally {
-    setLoading(false);
-    setRefreshing(false);
-  }
-};
-
-// Helper function to get document type
-const getDocumentType = (filePath: string): string => {
-  if (!filePath) return 'application/octet-stream';
-  
-  const ext = filePath.split('.').pop()?.toLowerCase();
-  const typeMap: Record<string, string> = {
-    'pdf': 'application/pdf',
-    'doc': 'application/msword',
-    'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'txt': 'text/plain',
-    'jpg': 'image/jpeg',
-    'jpeg': 'image/jpeg',
-    'png': 'image/png',
-    'gif': 'image/gif',
-    'mp4': 'video/mp4',
-    'avi': 'video/x-msvideo',
-    'mov': 'video/quicktime',
-    'wmv': 'video/x-ms-wmv'
   };
-  return typeMap[ext || ''] || 'application/octet-stream';
-};
 
   const fetchUsers = async () => {
     try {
@@ -554,76 +519,11 @@ const getDocumentType = (filePath: string): string => {
     }
   };
 
-  // Load mock/preview assignments to show the UI
-  const loadPreviewAssignments = () => {
-    const mockAssignments = [
-      {
-        id: '1',
-        teacherId: user?.id || '1',
-        teacherName: user?.name || 'Teacher',
-        title: 'Mathematics Quiz - Algebra',
-        description: 'Complete the algebra problems covering linear equations and quadratic functions.',
-        instructions: 'Solve all 20 problems. Show your work for full credit. Use proper mathematical notation.',
-        subject: 'Mathematics',
-        class: 'Grade 10A',
-        dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days from now
-        createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
-        updatedAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
-        documentUrl: 'https://example.com/algebra-quiz.pdf',
-        documentName: 'algebra-quiz.pdf',
-        documentType: 'application/pdf',
-        isEdited: false
-      },
-      {
-        id: '2',
-        teacherId: user?.id || '1',
-        teacherName: user?.name || 'Teacher',
-        title: 'Science Project - Solar System',
-        description: 'Create a detailed model of the solar system with explanations of each planet.',
-        instructions: 'Build a 3D model using any materials. Include a written report (minimum 500 words) about each planet\'s characteristics.',
-        subject: 'Science',
-        class: 'Grade 10B',
-        dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 days from now
-        createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000), // 1 day ago
-        updatedAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
-        documentUrl: 'https://example.com/solar-system-guide.pdf',
-        documentName: 'solar-system-guide.pdf',
-        documentType: 'application/pdf',
-        isEdited: true
-      },
-      {
-        id: '3',
-        teacherId: user?.id || '1',
-        teacherName: user?.name || 'Teacher',
-        title: 'English Essay - Creative Writing',
-        description: 'Write a creative short story (800-1000 words) on the theme of "Adventure".',
-        instructions: 'Your story should have a clear beginning, middle, and end. Focus on character development and descriptive language. Submit in PDF format.',
-        subject: 'English',
-        class: 'Grade 11A',
-        dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
-        createdAt: new Date(Date.now() - 3 * 60 * 60 * 1000), // 3 hours ago
-        updatedAt: new Date(Date.now() - 3 * 60 * 60 * 1000),
-        documentUrl: null,
-        documentName: null,
-        documentType: null,
-        isEdited: false
-      }
-    ];
-    
-    setAssignments(mockAssignments);
-    toast({
-      title: "Preview Mode",
-      description: `Showing ${mockAssignments.length} sample assignments (API fetch disabled)`,
-    });
-  };
-
   useEffect(() => {
     if (user?.id) {
       fetchUsers();
       fetchActiveUsers();
-      // COMMENTED OUT: fetchTeacherAssignments();
-      // Instead, load preview assignments
-      loadPreviewAssignments();
+      fetchTeacherAssignments();
       
       const interval = setInterval(fetchActiveUsers, 30000);
       return () => clearInterval(interval);
@@ -702,29 +602,8 @@ const getDocumentType = (filePath: string): string => {
           description: `Assignment "${newAssignment.title}" created successfully!`,
         });
         
-        // COMMENTED OUT: Refresh assignments list since fetch is disabled
-        // await fetchTeacherAssignments(true);
-        
-        // Instead, add the new assignment to preview list
-        const newAssignmentPreview = {
-          id: (assignments.length + 1).toString(),
-          teacherId: user?.id || '1',
-          teacherName: user?.name || 'Teacher',
-          title: newAssignment.title,
-          description: newAssignment.description,
-          instructions: newAssignment.instructions,
-          subject: user?.subject || 'General',
-          class: newAssignment.class,
-          dueDate: newAssignment.dueDate,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          documentUrl: newAssignment.documentFile ? URL.createObjectURL(newAssignment.documentFile) : null,
-          documentName: newAssignment.documentFile ? newAssignment.documentFile.name : null,
-          documentType: newAssignment.documentFile ? newAssignment.documentFile.type : null,
-          isEdited: false
-        };
-        
-        setAssignments(prev => [newAssignmentPreview, ...prev]);
+        // Refresh assignments list from API
+        await fetchTeacherAssignments(false);
         
         // Reset form
         setNewAssignment({
@@ -737,11 +616,6 @@ const getDocumentType = (filePath: string): string => {
           documentFile: null
         });
         setIsCreateAssignmentOpen(false);
-        
-        toast({
-          title: "Preview Updated",
-          description: "New assignment added to preview list!",
-        });
         
       } else {
         throw new Error(data.message || 'Failed to create assignment');
@@ -791,9 +665,7 @@ const getDocumentType = (filePath: string): string => {
   };
 
   const handleRefreshAssignments = () => {
-    // COMMENTED OUT: fetchTeacherAssignments(true);
-    // Instead, reload preview assignments
-    loadPreviewAssignments();
+    fetchTeacherAssignments(true);
   };
 
   const filteredSubmissions = mySubmissions.filter(submission => {
@@ -807,16 +679,16 @@ const getDocumentType = (filePath: string): string => {
 
   return (
     <div className="space-y-6 p-6 bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
-      {/* Preview Mode Banner */}
-      <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 shadow-lg">
+      {/* API Status Banner */}
+      <Card className="bg-gradient-to-r from-green-50 to-emerald-50 border-green-200 shadow-lg">
         <CardContent className="p-4">
           <div className="flex items-center gap-3">
-            <div className="bg-blue-600 text-white p-2 rounded-full">
-              <Eye className="h-5 w-5" />
+            <div className="bg-green-600 text-white p-2 rounded-full">
+              <RefreshCw className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="font-semibold text-blue-800">Preview Mode Active</h3>
-              <p className="text-sm text-blue-600">Assignment fetching API is disabled. Showing sample assignments for UI preview. Assignment creation API is still working.</p>
+              <h3 className="font-semibold text-green-800">Live Data Mode</h3>
+              <p className="text-sm text-green-600">Fetching assignments from API. All changes are saved to the database.</p>
             </div>
           </div>
         </CardContent>
@@ -917,7 +789,7 @@ const getDocumentType = (filePath: string): string => {
                     className="shadow-sm hover:shadow-md transition-all"
                   >
                     <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-                    Refresh Preview
+                    Refresh
                   </Button>
                   <Dialog open={isCreateAssignmentOpen} onOpenChange={setIsCreateAssignmentOpen}>
                     <DialogTrigger asChild>
@@ -1058,8 +930,8 @@ const getDocumentType = (filePath: string): string => {
                     <Card className="text-center py-12">
                       <CardContent>
                         <FileText className="h-16 w-16 mx-auto text-gray-300 mb-4" />
-                        <p className="text-gray-500 text-lg mb-2">No assignments in preview</p>
-                        <p className="text-gray-400">Create your first assignment to see it here!</p>
+                        <p className="text-gray-500 text-lg mb-2">No assignments yet</p>
+                        <p className="text-gray-400">Create your first assignment to get started!</p>
                       </CardContent>
                     </Card>
                   ) : (
