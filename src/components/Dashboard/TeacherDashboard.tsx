@@ -8,7 +8,6 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Calendar } from '@/components/ui/calendar';
 import {
   Dialog,
   DialogContent,
@@ -35,70 +34,495 @@ import {
   Users,
   MessageSquare,
   Plus,
-  Filter,
-  Search
+  Search,
+  X,
+  File,
+  Video,
+  Image as ImageIcon,
+  FileCode,
+  RefreshCw
 } from 'lucide-react';
-import { mockAssignments, mockSubmissions } from '../../data/mockData';
+import { mockSubmissions } from '../../data/mockData';
 import { useAuth } from '../../contexts/AuthContext';
 import ActivityTimeline from '../Shared/ActivityTimeline';
-import DocumentPreview from '../Shared/DocumentPreview';
 import { mockActivities } from '../../data/mockData';
 import { Assignment, Submission } from '../../types';
 import { useToast } from '@/hooks/use-toast';
 
-interface User {
-  id: string;
-  username: string;
-  firstname?: string;
-  sirname?: string;
-  email: string;
-  role: string;
-  class_name?: string;
-  class?: string;
-  subject?: string;
-  isOnline?: boolean;
-  lastActive?: Date;
-}
+// Circular Clock Component
+const CircularClock = ({ selectedTime, onTimeChange }) => {
+  const [hours, setHours] = useState(selectedTime.getHours());
+  const [minutes, setMinutes] = useState(selectedTime.getMinutes());
+  const [isHourMode, setIsHourMode] = useState(true);
 
-interface ActiveUser {
-  id: string;
-  email: string;
-  username: string;
-  role: string;
-  loginTime: string;
-}
+  const handleClockClick = (e) => {
+    const clock = e.currentTarget;
+    const rect = clock.getBoundingClientRect();
+    const x = e.clientX - rect.left - rect.width / 2;
+    const y = e.clientY - rect.top - rect.height / 2;
+    const angle = Math.atan2(y, x);
+    const degrees = (angle * 180 / Math.PI + 90 + 360) % 360;
+
+    if (isHourMode) {
+      const newHours = Math.round(degrees / 30) % 12 || 12;
+      setHours(newHours);
+      const newDate = new Date(selectedTime);
+      newDate.setHours(newHours);
+      onTimeChange(newDate);
+    } else {
+      const newMinutes = Math.round(degrees / 6) % 60;
+      setMinutes(newMinutes);
+      const newDate = new Date(selectedTime);
+      newDate.setMinutes(newMinutes);
+      onTimeChange(newDate);
+    }
+  };
+
+  return (
+    <div className="flex flex-col items-center gap-4">
+      <div className="flex gap-2 text-3xl font-bold">
+        <button
+          onClick={() => setIsHourMode(true)}
+          className={`px-4 py-2 rounded-lg transition-colors ${
+            isHourMode ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-600'
+          }`}
+        >
+          {hours.toString().padStart(2, '0')}
+        </button>
+        <span className="py-2">:</span>
+        <button
+          onClick={() => setIsHourMode(false)}
+          className={`px-4 py-2 rounded-lg transition-colors ${
+            !isHourMode ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-600'
+          }`}
+        >
+          {minutes.toString().padStart(2, '0')}
+        </button>
+      </div>
+      <div
+        className="relative w-64 h-64 bg-gradient-to-br from-gray-50 to-gray-100 rounded-full shadow-inner cursor-pointer"
+        onClick={handleClockClick}
+      >
+        {(isHourMode ? [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] : [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55]).map((num, i) => {
+          const angle = (i * 30 - 90) * Math.PI / 180;
+          const radius = 100;
+          const x = Math.cos(angle) * radius;
+          const y = Math.sin(angle) * radius;
+          return (
+            <div
+              key={num}
+              className="absolute text-sm font-semibold text-gray-600"
+              style={{
+                left: `calc(50% + ${x}px - 10px)`,
+                top: `calc(50% + ${y}px - 10px)`,
+                width: '20px',
+                height: '20px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              {num}
+            </div>
+          );
+        })}
+        <div
+          className="absolute w-1 bg-red-600 origin-bottom rounded-full transition-transform duration-200"
+          style={{
+            height: '80px',
+            left: 'calc(50% - 2px)',
+            top: 'calc(50% - 80px)',
+            transform: `rotate(${isHourMode ? (hours % 12) * 30 : minutes * 6}deg)`
+          }}
+        >
+          <div className="absolute -top-2 -left-1 w-4 h-4 bg-red-600 rounded-full border-2 border-white" />
+        </div>
+        <div className="absolute w-3 h-3 bg-red-600 rounded-full" style={{ left: 'calc(50% - 6px)', top: 'calc(50% - 6px)' }} />
+      </div>
+    </div>
+  );
+};
+
+// Modern Calendar Component
+const ModernCalendar = ({ selectedDate, onDateChange }) => {
+  const [currentMonth, setCurrentMonth] = useState(selectedDate || new Date());
+  const [selected, setSelected] = useState(selectedDate);
+
+  const daysInMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).getDate();
+  const firstDayOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).getDay();
+  
+  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  const handleDateClick = (day) => {
+    const newDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+    setSelected(newDate);
+    onDateChange(newDate);
+  };
+
+  const previousMonth = () => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1));
+  };
+
+  const nextMonth = () => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1));
+  };
+
+  const days = [];
+  for (let i = 0; i < firstDayOfMonth; i++) {
+    days.push(<div key={`empty-${i}`} className="h-10" />);
+  }
+  for (let day = 1; day <= daysInMonth; day++) {
+    const isSelected = selected && selected.getDate() === day && selected.getMonth() === currentMonth.getMonth();
+    const isToday = new Date().getDate() === day && new Date().getMonth() === currentMonth.getMonth() && new Date().getFullYear() === currentMonth.getFullYear();
+    
+    days.push(
+      <button
+        key={day}
+        onClick={() => handleDateClick(day)}
+        className={`h-10 rounded-full transition-all hover:bg-red-100 ${
+          isSelected ? 'bg-red-600 text-white font-bold shadow-lg scale-110' : 
+          isToday ? 'bg-red-100 text-red-600 font-semibold' : 
+          'text-gray-700 hover:scale-105'
+        }`}
+      >
+        {day}
+      </button>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-xl shadow-lg p-4">
+      <div className="flex justify-between items-center mb-4">
+        <button onClick={previousMonth} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+          ←
+        </button>
+        <h3 className="text-lg font-bold text-gray-800">
+          {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
+        </h3>
+        <button onClick={nextMonth} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+          →
+        </button>
+      </div>
+      <div className="grid grid-cols-7 gap-2 mb-2">
+        {dayNames.map(day => (
+          <div key={day} className="text-center text-xs font-semibold text-gray-500">
+            {day}
+          </div>
+        ))}
+      </div>
+      <div className="grid grid-cols-7 gap-2">
+        {days}
+      </div>
+    </div>
+  );
+};
+
+// Countdown Timer Display
+const CountdownTimer = ({ dueDate }) => {
+  const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const now = new Date().getTime();
+      const distance = new Date(dueDate).getTime() - now;
+
+      if (distance < 0) {
+        setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+        clearInterval(timer);
+        return;
+      }
+
+      setTimeLeft({
+        days: Math.floor(distance / (1000 * 60 * 60 * 24)),
+        hours: Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
+        minutes: Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60)),
+        seconds: Math.floor((distance % (1000 * 60)) / 1000)
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [dueDate]);
+
+  const CircularProgress = ({ value, max, label, color }) => {
+    const percentage = (value / max) * 100;
+    const circumference = 2 * Math.PI * 45;
+    const strokeDashoffset = circumference - (percentage / 100) * circumference;
+
+    return (
+      <div className="flex flex-col items-center">
+        <div className="relative w-20 h-20">
+          <svg className="transform -rotate-90 w-20 h-20">
+            <circle
+              cx="40"
+              cy="40"
+              r="35"
+              stroke="currentColor"
+              strokeWidth="6"
+              fill="transparent"
+              className="text-gray-200"
+            />
+            <circle
+              cx="40"
+              cy="40"
+              r="35"
+              stroke="currentColor"
+              strokeWidth="6"
+              fill="transparent"
+              strokeDasharray={circumference}
+              strokeDashoffset={strokeDashoffset}
+              className={color}
+              style={{ transition: 'stroke-dashoffset 0.5s ease' }}
+            />
+          </svg>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="text-xl font-bold">{value}</span>
+          </div>
+        </div>
+        <span className="text-xs text-gray-600 mt-1">{label}</span>
+      </div>
+    );
+  };
+
+  return (
+    <div className="flex justify-around items-center gap-2">
+      <CircularProgress value={timeLeft.days} max={30} label="Days" color="text-red-600" />
+      <CircularProgress value={timeLeft.hours} max={24} label="Hours" color="text-orange-600" />
+      <CircularProgress value={timeLeft.minutes} max={60} label="Minutes" color="text-blue-600" />
+      <CircularProgress value={timeLeft.seconds} max={60} label="Seconds" color="text-green-600" />
+    </div>
+  );
+};
+
+// Document Preview Component
+const DocumentPreview = ({ isOpen, onClose, documentUrl, documentName, documentType, onDownload }) => {
+  const getFileIcon = () => {
+    if (!documentType) return <File className="h-12 w-12 text-gray-400" />;
+    
+    if (documentType.includes('video')) return <Video className="h-12 w-12 text-purple-600" />;
+    if (documentType.includes('image')) return <ImageIcon className="h-12 w-12 text-blue-600" />;
+    if (documentType.includes('pdf')) return <FileText className="h-12 w-12 text-red-600" />;
+    return <FileCode className="h-12 w-12 text-green-600" />;
+  };
+
+  const renderPreview = () => {
+    if (!documentUrl || !documentType) {
+      return (
+        <div className="flex flex-col items-center justify-center h-96 text-gray-400">
+          {getFileIcon()}
+          <p className="mt-4">No preview available</p>
+        </div>
+      );
+    }
+
+    if (documentType.includes('image')) {
+      return <img src={documentUrl} alt={documentName} className="max-w-full h-auto rounded-lg" />;
+    }
+
+    if (documentType.includes('video')) {
+      return (
+        <video controls className="w-full rounded-lg">
+          <source src={documentUrl} type={documentType} />
+          Your browser does not support the video tag.
+        </video>
+      );
+    }
+
+    if (documentType.includes('pdf')) {
+      return (
+        <iframe
+          src={documentUrl}
+          className="w-full h-96 rounded-lg border"
+          title={documentName}
+        />
+      );
+    }
+
+    return (
+      <div className="flex flex-col items-center justify-center h-96 text-gray-600">
+        {getFileIcon()}
+        <p className="mt-4 text-center">Preview not available for this file type<br />Click download to view</p>
+      </div>
+    );
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
+        <DialogHeader>
+          <div className="flex justify-between items-center">
+            <DialogTitle>{documentName || 'Document Preview'}</DialogTitle>
+            <Button variant="ghost" size="icon" onClick={onClose}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        </DialogHeader>
+        <div className="mt-4">
+          {renderPreview()}
+        </div>
+        <div className="flex justify-end gap-2 mt-4">
+          <Button variant="outline" onClick={onDownload}>
+            <Download className="h-4 w-4 mr-2" />
+            Download
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
 
 export default function TeacherDashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [assignments, setAssignments] = useState(mockAssignments.filter(a => a.teacherId === user?.id));
+  const [assignments, setAssignments] = useState([]);
   const [submissions] = useState(mockSubmissions);
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [selectedDate, setSelectedDate] = useState(new Date());
   const [isCreateAssignmentOpen, setIsCreateAssignmentOpen] = useState(false);
-  const [previewDocument, setPreviewDocument] = useState<Assignment | Submission | null>(null);
+  const [previewDocument, setPreviewDocument] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
-  const [users, setUsers] = useState<User[]>([]);
-  const [activeUsers, setActiveUsers] = useState<ActiveUser[]>([]);
+  const [users, setUsers] = useState([]);
+  const [activeUsers, setActiveUsers] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const [newAssignment, setNewAssignment] = useState({
-    teacherId:'',
+    teacherId: '',
     title: '',
     description: '',
     instructions: '',
     class: '',
     dueDate: new Date(),
-    documentFile: null as File | null
+    documentFile: null
   });
 
-  // Fetch all users from backend
+COMMENTED OUT: Fetch assignments API - not working properly
+const fetchTeacherAssignments = async (showRefreshIndicator = false) => {
+  // Ensure user and user.id exist before making the request
+  if (!user?.id) {
+    console.log('No user ID available', user);
+    return;
+  }
+  
+  if (showRefreshIndicator) {
+    setRefreshing(true);
+  } else {
+    setLoading(true);
+  }
+  
+  try {
+    const token = localStorage.getItem('token');
+    
+    if (!token) {
+      toast({
+        title: "Authentication Error",
+        description: "Please log in again",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // user.id is already a string from AuthContext
+    const teacherId = user.id;
+    console.log('Fetching assignments for teacher ID:', teacherId);
+    console.log('User object:', user);
+    
+    const response = await fetch(`http://localhost:5000/api/assignments/teacher/${teacherId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    console.log('Response status:', response.status);
+    
+    const data = await response.json();
+    console.log('Response data:', data);
+    
+    if (!response.ok) {
+      throw new Error(data.message || `HTTP error! status: ${response.status}`);
+    }
+    
+    if (data.success) {
+      const formattedAssignments = data.assignments.map(assignment => ({
+        ...assignment,
+        id: assignment.id.toString(),
+        teacherId: assignment.teacher_id,
+        // Use 'name' property from User interface (AuthContext converts username to name)
+        teacherName: user.name || user.email.split('@')[0],
+        subject: user.subject || 'General',
+        class: assignment.class_name,
+        dueDate: new Date(assignment.due_date),
+        createdAt: new Date(assignment.created_at),
+        updatedAt: new Date(assignment.updated_at),
+        documentUrl: assignment.document_path ? `http://localhost:5000${assignment.document_path}` : undefined,
+        documentName: assignment.document_path ? assignment.document_path.split('/').pop() : undefined,
+        documentType: assignment.document_path ? getDocumentType(assignment.document_path) : undefined,
+        isEdited: false
+      }));
+      
+      console.log('Formatted assignments:', formattedAssignments);
+      setAssignments(formattedAssignments);
+      
+      if (showRefreshIndicator) {
+        toast({
+          title: "Refreshed",
+          description: `Updated assignments list (${formattedAssignments.length} assignment${formattedAssignments.length !== 1 ? 's' : ''})`,
+        });
+      } else {
+        toast({
+          title: "Success",
+          description: `Loaded ${formattedAssignments.length} assignment${formattedAssignments.length !== 1 ? 's' : ''}`,
+        });
+      }
+    } else {
+      throw new Error(data.message || "Failed to fetch assignments");
+    }
+  } catch (error) {
+    console.error('Error fetching assignments:', error);
+    toast({
+      title: "Error",
+      description: error instanceof Error ? error.message : "Failed to fetch assignments. Please try again.",
+      variant: "destructive"
+    });
+  } finally {
+    setLoading(false);
+    setRefreshing(false);
+  }
+};
+
+// Helper function to get document type
+const getDocumentType = (filePath: string): string => {
+  if (!filePath) return 'application/octet-stream';
+  
+  const ext = filePath.split('.').pop()?.toLowerCase();
+  const typeMap: Record<string, string> = {
+    'pdf': 'application/pdf',
+    'doc': 'application/msword',
+    'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'txt': 'text/plain',
+    'jpg': 'image/jpeg',
+    'jpeg': 'image/jpeg',
+    'png': 'image/png',
+    'gif': 'image/gif',
+    'mp4': 'video/mp4',
+    'avi': 'video/x-msvideo',
+    'mov': 'video/quicktime',
+    'wmv': 'video/x-ms-wmv'
+  };
+  return typeMap[ext || ''] || 'application/octet-stream';
+};
+
   const fetchUsers = async () => {
     try {
       const response = await fetch('http://localhost:5000/api/getallusers');
       const data = await response.json();
       
       if (data.success) {
-        setUsers(data.users.map((user: any) => ({
+        setUsers(data.users.map((user) => ({
           ...user,
           username: `${user.firstname || ''} ${user.sirname || ''}`.trim() || user.email.split('@')[0],
           class_name: user.class,
@@ -111,7 +535,6 @@ export default function TeacherDashboard() {
     }
   };
 
-  // Fetch active users from backend
   const fetchActiveUsers = async () => {
     try {
       const response = await fetch('http://localhost:5000/api/active-users');
@@ -119,12 +542,10 @@ export default function TeacherDashboard() {
       
       if (data.success) {
         setActiveUsers(data.users);
-        
-        // Update users list to mark active users as online
         setUsers(prevUsers => 
           prevUsers.map(user => ({
             ...user,
-            isOnline: data.users.some((activeUser: ActiveUser) => activeUser.id === user.id)
+            isOnline: data.users.some((activeUser) => activeUser.id === user.id)
           }))
         );
       }
@@ -133,24 +554,87 @@ export default function TeacherDashboard() {
     }
   };
 
-  // Load data on component mount
-  useEffect(() => {
-    fetchUsers();
-    fetchActiveUsers();
+  // Load mock/preview assignments to show the UI
+  const loadPreviewAssignments = () => {
+    const mockAssignments = [
+      {
+        id: '1',
+        teacherId: user?.id || '1',
+        teacherName: user?.name || 'Teacher',
+        title: 'Mathematics Quiz - Algebra',
+        description: 'Complete the algebra problems covering linear equations and quadratic functions.',
+        instructions: 'Solve all 20 problems. Show your work for full credit. Use proper mathematical notation.',
+        subject: 'Mathematics',
+        class: 'Grade 10A',
+        dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days from now
+        createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
+        updatedAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
+        documentUrl: 'https://example.com/algebra-quiz.pdf',
+        documentName: 'algebra-quiz.pdf',
+        documentType: 'application/pdf',
+        isEdited: false
+      },
+      {
+        id: '2',
+        teacherId: user?.id || '1',
+        teacherName: user?.name || 'Teacher',
+        title: 'Science Project - Solar System',
+        description: 'Create a detailed model of the solar system with explanations of each planet.',
+        instructions: 'Build a 3D model using any materials. Include a written report (minimum 500 words) about each planet\'s characteristics.',
+        subject: 'Science',
+        class: 'Grade 10B',
+        dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 days from now
+        createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000), // 1 day ago
+        updatedAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
+        documentUrl: 'https://example.com/solar-system-guide.pdf',
+        documentName: 'solar-system-guide.pdf',
+        documentType: 'application/pdf',
+        isEdited: true
+      },
+      {
+        id: '3',
+        teacherId: user?.id || '1',
+        teacherName: user?.name || 'Teacher',
+        title: 'English Essay - Creative Writing',
+        description: 'Write a creative short story (800-1000 words) on the theme of "Adventure".',
+        instructions: 'Your story should have a clear beginning, middle, and end. Focus on character development and descriptive language. Submit in PDF format.',
+        subject: 'English',
+        class: 'Grade 11A',
+        dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
+        createdAt: new Date(Date.now() - 3 * 60 * 60 * 1000), // 3 hours ago
+        updatedAt: new Date(Date.now() - 3 * 60 * 60 * 1000),
+        documentUrl: null,
+        documentName: null,
+        documentType: null,
+        isEdited: false
+      }
+    ];
     
-    // Poll active users every 30 seconds
-    const interval = setInterval(fetchActiveUsers, 30000);
-    return () => clearInterval(interval);
-  }, []);
+    setAssignments(mockAssignments);
+    toast({
+      title: "Preview Mode",
+      description: `Showing ${mockAssignments.length} sample assignments (API fetch disabled)`,
+    });
+  };
 
-  // Filter students and get dynamic data
+  useEffect(() => {
+    if (user?.id) {
+      fetchUsers();
+      fetchActiveUsers();
+      // COMMENTED OUT: fetchTeacherAssignments();
+      // Instead, load preview assignments
+      loadPreviewAssignments();
+      
+      const interval = setInterval(fetchActiveUsers, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [user?.id]);
+
   const students = users.filter(u => u.role === 'student');
-  const myStudents = students; // All students for now, could be filtered by teacher's classes
   const mySubmissions = submissions.filter(s => 
     assignments.some(a => a.id === s.assignmentId)
   );
 
-  // Calculate dynamic stats
   const stats = {
     myAssignments: assignments.length,
     totalSubmissions: mySubmissions.length,
@@ -160,11 +644,11 @@ export default function TeacherDashboard() {
     totalOnlineUsers: activeUsers.length
   };
 
-  const getInitials = (name: string) => {
+  const getInitials = (name) => {
     return name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2);
   };
 
-  const formatTimeAgo = (date: Date) => {
+  const formatTimeAgo = (date) => {
     const now = new Date();
     const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
     
@@ -174,14 +658,14 @@ export default function TeacherDashboard() {
     return `${Math.floor(diffInMinutes / 1440)}d ago`;
   };
 
-  const getDaysUntilDue = (due_date: Date) => {
+  const getDaysUntilDue = (dueDate) => {
     const now = new Date();
-    const diffInDays = Math.ceil((due_date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    const diffInDays = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
     return diffInDays;
   };
 
   const handleCreateAssignment = async () => {
-    if (!newAssignment.title || !newAssignment.description) {
+    if (!newAssignment.title || !newAssignment.description || !newAssignment.class) {
       toast({
         title: "Error",
         description: "Please fill in all required fields",
@@ -191,7 +675,6 @@ export default function TeacherDashboard() {
     }
     
     try {
-      // This would be the actual API call to create assignment
       const formData = new FormData();
       if (newAssignment.documentFile) {
         formData.append('document', newAssignment.documentFile);
@@ -205,58 +688,112 @@ export default function TeacherDashboard() {
       
       const response = await fetch('http://localhost:5000/api/assignments/new', {
         method: 'POST',
-         headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`, // or wherever you store your JWT
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
         body: formData
       });
       
-      const assignment = {
-        id: Date.now().toString(),
-        ...newAssignment,
-        teacher_id: user?.id || '',
-        teacherName: user?.name || '',
-        subject: user?.subject || '',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        documentUrl: newAssignment.documentFile ? `/mock-documents/${newAssignment.documentFile.name}` : undefined,
-        documentName: newAssignment.documentFile?.name,
-        documentType: newAssignment.documentFile?.type,
-        isEdited: false
-      };
+      const data = await response.json();
       
-      setAssignments([...assignments, assignment]);
-      
-      toast({
-        title: "Success",
-        description: `Assignment "${newAssignment.title}" created successfully!`,
-      });
-      
-      setNewAssignment({
-        teacherId:'',
-        title: '',
-        description: '',
-        instructions: '',
-        class: '',
-        dueDate: new Date(),
-        documentFile: null
-      });
-      setIsCreateAssignmentOpen(false);
+      if (data.success) {
+        toast({
+          title: "Success",
+          description: `Assignment "${newAssignment.title}" created successfully!`,
+        });
+        
+        // COMMENTED OUT: Refresh assignments list since fetch is disabled
+        // await fetchTeacherAssignments(true);
+        
+        // Instead, add the new assignment to preview list
+        const newAssignmentPreview = {
+          id: (assignments.length + 1).toString(),
+          teacherId: user?.id || '1',
+          teacherName: user?.name || 'Teacher',
+          title: newAssignment.title,
+          description: newAssignment.description,
+          instructions: newAssignment.instructions,
+          subject: user?.subject || 'General',
+          class: newAssignment.class,
+          dueDate: newAssignment.dueDate,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          documentUrl: newAssignment.documentFile ? URL.createObjectURL(newAssignment.documentFile) : null,
+          documentName: newAssignment.documentFile ? newAssignment.documentFile.name : null,
+          documentType: newAssignment.documentFile ? newAssignment.documentFile.type : null,
+          isEdited: false
+        };
+        
+        setAssignments(prev => [newAssignmentPreview, ...prev]);
+        
+        // Reset form
+        setNewAssignment({
+          teacherId: '',
+          title: '',
+          description: '',
+          instructions: '',
+          class: '',
+          dueDate: new Date(),
+          documentFile: null
+        });
+        setIsCreateAssignmentOpen(false);
+        
+        toast({
+          title: "Preview Updated",
+          description: "New assignment added to preview list!",
+        });
+        
+      } else {
+        throw new Error(data.message || 'Failed to create assignment');
+      }
     } catch (error) {
       console.error('Error creating assignment:', error);
       toast({
         title: "Error",
-        description: "Failed to create assignment. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to create assignment. Please try again.",
         variant: "destructive"
       });
     }
   };
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = (event) => {
     const file = event.target.files?.[0];
     if (file) {
       setNewAssignment({ ...newAssignment, documentFile: file });
     }
+  };
+
+  const handleDownload = async (documentUrl, documentName) => {
+    try {
+      const response = await fetch(documentUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = documentName || 'document';
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast({
+        title: "Success",
+        description: "Document downloaded successfully!",
+      });
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      toast({
+        title: "Error",
+        description: "Failed to download document.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleRefreshAssignments = () => {
+    // COMMENTED OUT: fetchTeacherAssignments(true);
+    // Instead, reload preview assignments
+    loadPreviewAssignments();
   };
 
   const filteredSubmissions = mySubmissions.filter(submission => {
@@ -266,80 +803,94 @@ export default function TeacherDashboard() {
     return matchesSearch && matchesStatus;
   });
 
-  // Get unique classes from students
   const availableClasses = [...new Set(students.map(s => s.class_name).filter(Boolean))];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6 bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
+      {/* Preview Mode Banner */}
+      <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 shadow-lg">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-3">
+            <div className="bg-blue-600 text-white p-2 rounded-full">
+              <Eye className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-blue-800">Preview Mode Active</h3>
+              <p className="text-sm text-blue-600">Assignment fetching API is disabled. Showing sample assignments for UI preview. Assignment creation API is still working.</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
+        <Card className="border-l-4 border-l-red-600 shadow-lg hover:shadow-xl transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">My Assignments</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
+            <FileText className="h-5 w-5 text-red-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.myAssignments}</div>
-            <p className="text-xs text-muted-foreground">Active assignments</p>
+            <div className="text-3xl font-bold text-red-600">{stats.myAssignments}</div>
+            <p className="text-xs text-muted-foreground mt-1">Active assignments</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-l-4 border-l-orange-600 shadow-lg hover:shadow-xl transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Submissions</CardTitle>
-            <Upload className="h-4 w-4 text-muted-foreground" />
+            <Upload className="h-5 w-5 text-orange-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalSubmissions}</div>
-            <p className="text-xs text-muted-foreground">Total submissions</p>
+            <div className="text-3xl font-bold text-orange-600">{stats.totalSubmissions}</div>
+            <p className="text-xs text-muted-foreground mt-1">Total submissions</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-l-4 border-l-yellow-600 shadow-lg hover:shadow-xl transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Pending Reviews</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
+            <Clock className="h-5 w-5 text-yellow-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-orange-600">{stats.pendingReviews}</div>
-            <p className="text-xs text-muted-foreground">Need attention</p>
+            <div className="text-3xl font-bold text-yellow-600">{stats.pendingReviews}</div>
+            <p className="text-xs text-muted-foreground mt-1">Need attention</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-l-4 border-l-green-600 shadow-lg hover:shadow-xl transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Online Students</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <Users className="h-5 w-5 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{stats.onlineStudents}</div>
-            <p className="text-xs text-muted-foreground">Currently active</p>
+            <div className="text-3xl font-bold text-green-600">{stats.onlineStudents}</div>
+            <p className="text-xs text-muted-foreground mt-1">Currently active</p>
           </CardContent>
         </Card>
       </div>
 
       {/* School Overview Card */}
-      <Card className="bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800">
+      <Card className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 border-purple-200 shadow-lg">
         <CardHeader>
-          <CardTitle className="text-purple-800 dark:text-purple-200">School Overview</CardTitle>
+          <CardTitle className="text-purple-800 dark:text-purple-200 text-xl">🎓 School Overview</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-purple-600">{stats.totalStudents}</div>
-              <p className="text-xs text-purple-600">Total Students</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            <div className="text-center p-4 bg-white rounded-lg shadow">
+              <div className="text-3xl font-bold text-purple-600">{stats.totalStudents}</div>
+              <p className="text-sm text-purple-600 font-medium mt-1">Total Students</p>
             </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-green-600">{stats.onlineStudents}</div>
-              <p className="text-xs text-green-600">Students Online</p>
+            <div className="text-center p-4 bg-white rounded-lg shadow">
+              <div className="text-3xl font-bold text-green-600">{stats.onlineStudents}</div>
+              <p className="text-sm text-green-600 font-medium mt-1">Students Online</p>
             </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">{users.filter(u => u.role === 'teacher').length}</div>
-              <p className="text-xs text-blue-600">Total Teachers</p>
+            <div className="text-center p-4 bg-white rounded-lg shadow">
+              <div className="text-3xl font-bold text-blue-600">{users.filter(u => u.role === 'teacher').length}</div>
+              <p className="text-sm text-blue-600 font-medium mt-1">Total Teachers</p>
             </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-red-600">{stats.totalOnlineUsers}</div>
-              <p className="text-xs text-red-600">All Online</p>
+            <div className="text-center p-4 bg-white rounded-lg shadow">
+              <div className="text-3xl font-bold text-red-600">{stats.totalOnlineUsers}</div>
+              <p className="text-sm text-red-600 font-medium mt-1">All Online</p>
             </div>
           </div>
         </CardContent>
@@ -349,187 +900,269 @@ export default function TeacherDashboard() {
         {/* Main Content */}
         <div className="lg:col-span-2">
           <Tabs defaultValue="assignments" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="assignments">My Assignments</TabsTrigger>
-              <TabsTrigger value="submissions">Submissions</TabsTrigger>
-              <TabsTrigger value="students">Students</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-3 bg-white shadow-md">
+              <TabsTrigger value="assignments" className="data-[state=active]:bg-red-600 data-[state=active]:text-white">My Assignments</TabsTrigger>
+              <TabsTrigger value="submissions" className="data-[state=active]:bg-red-600 data-[state=active]:text-white">Submissions</TabsTrigger>
+              <TabsTrigger value="students" className="data-[state=active]:bg-red-600 data-[state=active]:text-white">Students</TabsTrigger>
             </TabsList>
 
             <TabsContent value="assignments" className="space-y-4">
               <div className="flex justify-between items-center">
-                <h3 className="text-lg font-semibold">Assignment Management</h3>
-                <Dialog open={isCreateAssignmentOpen} onOpenChange={setIsCreateAssignmentOpen}>
-                  <DialogTrigger asChild>
-                    <Button className="bg-red-600 hover:bg-red-700">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Create Assignment
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-2xl">
-                    <DialogHeader>
-                      <DialogTitle>Create New Assignment</DialogTitle>
-                      <DialogDescription>
-                        Create a new assignment for your students
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                      <div>
-                        <Label htmlFor="title">Assignment Title</Label>
-                        <Input
-                          id="title"
-                          value={newAssignment.title}
-                          onChange={(e) => setNewAssignment({ ...newAssignment, title: e.target.value })}
-                          placeholder="Enter assignment title"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="description">Description</Label>
-                        <Textarea
-                          id="description"
-                          value={newAssignment.description}
-                          onChange={(e) => setNewAssignment({ ...newAssignment, description: e.target.value })}
-                          placeholder="Describe the assignment"
-                          rows={3}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="instructions">Instructions</Label>
-                        <Textarea
-                          id="instructions"
-                          value={newAssignment.instructions}
-                          onChange={(e) => setNewAssignment({ ...newAssignment, instructions: e.target.value })}
-                          placeholder="Provide detailed instructions for students"
-                          rows={3}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="class">Class</Label>
-                        <Select value={newAssignment.class} onValueChange={(value) => setNewAssignment({ ...newAssignment, class: value })}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select class" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {availableClasses.map(className => (
-                              <SelectItem key={className} value={className}>{className}</SelectItem>
-                            ))}
-                            <SelectItem value="Grade 10A">Grade 10A</SelectItem>
-                            <SelectItem value="Grade 10B">Grade 10B</SelectItem>
-                            <SelectItem value="Grade 11A">Grade 11A</SelectItem>
-                            <SelectItem value="Grade 11B">Grade 11B</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label htmlFor="dueDate">Due Date</Label>
-                        <Input
-                          id="dueDate"
-                          type="datetime-local"
-                          value={newAssignment.dueDate.toISOString().slice(0, 16)}
-                          onChange={(e) => setNewAssignment({ ...newAssignment, dueDate: new Date(e.target.value) })}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="document">Assignment Document (Optional)</Label>
-                        <Input
-                          id="document"
-                          type="file"
-                          onChange={handleFileUpload}
-                          accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png"
-                        />
-                        {newAssignment.documentFile && (
-                          <p className="text-sm text-gray-600 mt-1">
-                            Selected: {newAssignment.documentFile.name}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex justify-end space-x-2">
-                        <Button variant="outline" onClick={() => setIsCreateAssignmentOpen(false)}>
-                          Cancel
-                        </Button>
-                        <Button onClick={handleCreateAssignment} className="bg-red-600 hover:bg-red-700">
-                          Create Assignment
-                        </Button>
-                      </div>
-                    </div>
-                  </DialogContent>
-                </Dialog>
-              </div>
-
-              <ScrollArea className="h-96">
-                {assignments.map((assignment) => {
-                  const daysUntilDue = getDaysUntilDue(assignment.dueDate);
-                  const submissionCount = mySubmissions.filter(s => s.assignmentId === assignment.id).length;
-                  
-                  return (
-                    <Card key={assignment.id} className="mb-4">
-                      <CardHeader>
-                        <div className="flex justify-between items-start">
+                <h3 className="text-xl font-bold text-gray-800">Assignment Management</h3>
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    onClick={handleRefreshAssignments}
+                    disabled={refreshing}
+                    className="shadow-sm hover:shadow-md transition-all"
+                  >
+                    <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+                    Refresh Preview
+                  </Button>
+                  <Dialog open={isCreateAssignmentOpen} onOpenChange={setIsCreateAssignmentOpen}>
+                    <DialogTrigger asChild>
+                      <Button className="bg-red-600 hover:bg-red-700 shadow-lg hover:shadow-xl transition-all">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Create Assignment
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
+                      <DialogHeader>
+                        <DialogTitle className="text-2xl">Create New Assignment</DialogTitle>
+                        <DialogDescription>
+                          Create a new assignment for your students with detailed instructions
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="md:col-span-2">
+                            <Label htmlFor="title" className="text-base font-semibold">Assignment Title *</Label>
+                            <Input
+                              id="title"
+                              value={newAssignment.title}
+                              onChange={(e) => setNewAssignment({ ...newAssignment, title: e.target.value })}
+                              placeholder="Enter assignment title"
+                              className="mt-1"
+                            />
+                          </div>
+                          <div className="md:col-span-2">
+                            <Label htmlFor="description" className="text-base font-semibold">Description *</Label>
+                            <Textarea
+                              id="description"
+                              value={newAssignment.description}
+                              onChange={(e) => setNewAssignment({ ...newAssignment, description: e.target.value })}
+                              placeholder="Describe the assignment"
+                              rows={3}
+                              className="mt-1"
+                            />
+                          </div>
+                          <div className="md:col-span-2">
+                            <Label htmlFor="instructions" className="text-base font-semibold">Instructions</Label>
+                            <Textarea
+                              id="instructions"
+                              value={newAssignment.instructions}
+                              onChange={(e) => setNewAssignment({ ...newAssignment, instructions: e.target.value })}
+                              placeholder="Provide detailed instructions for students"
+                              rows={4}
+                              className="mt-1"
+                            />
+                          </div>
                           <div>
-                            <CardTitle className="text-lg">{assignment.title}</CardTitle>
-                            <CardDescription>{assignment.description}</CardDescription>
-                            <div className="flex items-center gap-2 mt-2">
-                              <Badge variant="outline">{assignment.class}</Badge>
-                              <Badge variant="outline">{assignment.subject}</Badge>
-                              {assignment.isEdited && (
-                                <Badge className="bg-orange-600">Edited</Badge>
-                              )}
+                            <Label htmlFor="class" className="text-base font-semibold">Class *</Label>
+                            <Select value={newAssignment.class} onValueChange={(value) => setNewAssignment({ ...newAssignment, class: value })}>
+                              <SelectTrigger className="mt-1">
+                                <SelectValue placeholder="Select class" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {availableClasses.map(className => (
+                                  <SelectItem key={className} value={className}>{className}</SelectItem>
+                                ))}
+                                <SelectItem value="Grade 10A">Grade 10A</SelectItem>
+                                <SelectItem value="Grade 10B">Grade 10B</SelectItem>
+                                <SelectItem value="Grade 11A">Grade 11A</SelectItem>
+                                <SelectItem value="Grade 11B">Grade 11B</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label className="text-base font-semibold">Assignment Document (Optional)</Label>
+                            <Input
+                              type="file"
+                              onChange={handleFileUpload}
+                              accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.gif,.mp4,.avi,.mov,.wmv"
+                              className="mt-1"
+                            />
+                            {newAssignment.documentFile && (
+                              <p className="text-sm text-green-600 mt-2 flex items-center">
+                                <File className="h-4 w-4 mr-1" />
+                                {newAssignment.documentFile.name}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="border-t pt-4">
+                          <Label className="text-base font-semibold mb-3 block">Due Date & Time *</Label>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                              <ModernCalendar
+                                selectedDate={newAssignment.dueDate}
+                                onDateChange={(date) => {
+                                  const newDate = new Date(date);
+                                  newDate.setHours(newAssignment.dueDate.getHours());
+                                  newDate.setMinutes(newAssignment.dueDate.getMinutes());
+                                  setNewAssignment({ ...newAssignment, dueDate: newDate });
+                                }}
+                              />
+                            </div>
+                            <div>
+                              <CircularClock
+                                selectedTime={newAssignment.dueDate}
+                                onTimeChange={(date) => setNewAssignment({ ...newAssignment, dueDate: date })}
+                              />
                             </div>
                           </div>
-                          <div className="text-right">
-                            <Badge 
-                              variant={daysUntilDue < 0 ? "destructive" : daysUntilDue <= 2 ? "default" : "secondary"}
-                              className={daysUntilDue <= 2 && daysUntilDue >= 0 ? "bg-orange-600" : ""}
-                            >
-                              {daysUntilDue < 0 ? "Overdue" : `${daysUntilDue} days left`}
-                            </Badge>
-                          </div>
+                          <p className="text-center mt-4 text-lg font-semibold text-gray-700">
+                            Selected: {newAssignment.dueDate.toLocaleString('en-US', { 
+                              weekday: 'long', 
+                              year: 'numeric', 
+                              month: 'long', 
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </p>
                         </div>
-                      </CardHeader>
+
+                        <div className="flex justify-end space-x-3 pt-4 border-t">
+                          <Button variant="outline" onClick={() => setIsCreateAssignmentOpen(false)} className="px-6">
+                            Cancel
+                          </Button>
+                          <Button onClick={handleCreateAssignment} className="bg-red-600 hover:bg-red-700 px-6">
+                            Create Assignment
+                          </Button>
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </div>
+
+              {loading ? (
+                <div className="flex justify-center items-center h-96">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600"></div>
+                </div>
+              ) : (
+                <ScrollArea className="h-[600px]">
+                  {assignments.length === 0 ? (
+                    <Card className="text-center py-12">
                       <CardContent>
-                        <div className="flex justify-between items-center">
-                          <div className="flex items-center gap-4">
-                            <span className="text-sm text-gray-600">
-                              Due: {assignment.dueDate.toLocaleDateString()}
-                            </span>
-                            <span className="text-sm text-gray-600">
-                              Submissions: {submissionCount}
-                            </span>
-                          </div>
-                          <div className="flex gap-2">
-                            {assignment.documentUrl && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setPreviewDocument(assignment)}
-                              >
-                                <Eye className="h-4 w-4 mr-1" />
-                                View
-                              </Button>
-                            )}
-                            <Button variant="outline" size="sm">
-                              <Edit className="h-4 w-4 mr-1" />
-                              Edit
-                            </Button>
-                          </div>
-                        </div>
+                        <FileText className="h-16 w-16 mx-auto text-gray-300 mb-4" />
+                        <p className="text-gray-500 text-lg mb-2">No assignments in preview</p>
+                        <p className="text-gray-400">Create your first assignment to see it here!</p>
                       </CardContent>
                     </Card>
-                  );
-                })}
-              </ScrollArea>
+                  ) : (
+                    assignments.map((assignment) => {
+                      const daysUntilDue = getDaysUntilDue(assignment.dueDate);
+                      const submissionCount = mySubmissions.filter(s => s.assignmentId === assignment.id).length;
+                      
+                      return (
+                        <Card key={assignment.id} className="mb-4 shadow-md hover:shadow-lg transition-shadow border-l-4 border-l-red-600">
+                          <CardHeader>
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1">
+                                <CardTitle className="text-xl text-gray-800">{assignment.title}</CardTitle>
+                                <CardDescription className="mt-1 text-base">{assignment.description}</CardDescription>
+                                {assignment.instructions && (
+                                  <p className="text-sm text-gray-600 mt-2 italic">
+                                    Instructions: {assignment.instructions}
+                                  </p>
+                                )}
+                                <div className="flex items-center gap-2 mt-3 flex-wrap">
+                                  <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-300">
+                                    {assignment.class}
+                                  </Badge>
+                                  <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300">
+                                    {assignment.subject}
+                                  </Badge>
+                                  {assignment.isEdited && (
+                                    <Badge className="bg-orange-600">Edited</Badge>
+                                  )}
+                                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
+                                    Created {formatTimeAgo(assignment.createdAt)}
+                                  </Badge>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <Badge 
+                                  variant={daysUntilDue < 0 ? "destructive" : daysUntilDue <= 2 ? "default" : "secondary"}
+                                  className={`text-base px-3 py-1 ${daysUntilDue <= 2 && daysUntilDue >= 0 ? "bg-orange-600" : ""}`}
+                                >
+                                  {daysUntilDue < 0 ? "Overdue" : `${daysUntilDue} days left`}
+                                </Badge>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="mb-4">
+                              <CountdownTimer dueDate={assignment.dueDate} />
+                            </div>
+                            <div className="flex justify-between items-center pt-4 border-t">
+                              <div className="flex items-center gap-4">
+                                <span className="text-sm text-gray-600 flex items-center">
+                                  <CalendarIcon className="h-4 w-4 mr-1" />
+                                  Due: {assignment.dueDate.toLocaleDateString('en-US', { 
+                                    month: 'short', 
+                                    day: 'numeric', 
+                                    year: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })}
+                                </span>
+                                <span className="text-sm text-gray-600 flex items-center">
+                                  <Upload className="h-4 w-4 mr-1" />
+                                  Submissions: {submissionCount}
+                                </span>
+                              </div>
+                              <div className="flex gap-2">
+                                {assignment.documentUrl && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setPreviewDocument(assignment)}
+                                    className="hover:bg-blue-50"
+                                  >
+                                    <Eye className="h-4 w-4 mr-1" />
+                                    View Document
+                                  </Button>
+                                )}
+                                <Button variant="outline" size="sm" className="hover:bg-green-50">
+                                  <Edit className="h-4 w-4 mr-1" />
+                                  Edit
+                                </Button>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })
+                  )}
+                </ScrollArea>
+              )}
             </TabsContent>
 
             <TabsContent value="submissions" className="space-y-4">
-              <div className="flex justify-between items-center">
-                <h3 className="text-lg font-semibold">Student Submissions</h3>
+              <div className="flex justify-between items-center flex-wrap gap-3">
+                <h3 className="text-xl font-bold text-gray-800">Student Submissions</h3>
                 <div className="flex gap-2">
                   <div className="relative">
-                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
                       placeholder="Search submissions..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-8 w-64"
+                      className="pl-10 w-64"
                     />
                   </div>
                   <Select value={filterStatus} onValueChange={setFilterStatus}>
@@ -546,118 +1179,141 @@ export default function TeacherDashboard() {
                 </div>
               </div>
 
-              <ScrollArea className="h-96">
-                {filteredSubmissions.map((submission) => {
-                  const assignment = assignments.find(a => a.id === submission.assignmentId);
-                  
-                  return (
-                    <Card key={submission.id} className="mb-4">
-                      <CardHeader>
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <CardTitle className="text-lg">{assignment?.title}</CardTitle>
-                            <CardDescription>
-                              Submitted by {submission.studentName}
-                            </CardDescription>
-                            <p className="text-sm text-gray-600 mt-1">
-                              {formatTimeAgo(submission.submittedAt)}
-                            </p>
+              <ScrollArea className="h-[600px]">
+                {filteredSubmissions.length === 0 ? (
+                  <Card className="text-center py-12">
+                    <CardContent>
+                      <Upload className="h-16 w-16 mx-auto text-gray-300 mb-4" />
+                      <p className="text-gray-500 text-lg mb-2">No submissions yet</p>
+                      <p className="text-gray-400">Students will submit their work here</p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  filteredSubmissions.map((submission) => {
+                    const assignment = assignments.find(a => a.id === submission.assignmentId);
+                    
+                    return (
+                      <Card key={submission.id} className="mb-4 shadow-md hover:shadow-lg transition-shadow">
+                        <CardHeader>
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <CardTitle className="text-lg">{assignment?.title}</CardTitle>
+                              <CardDescription className="mt-1">
+                                Submitted by <span className="font-semibold">{submission.studentName}</span>
+                              </CardDescription>
+                              <p className="text-sm text-gray-600 mt-1 flex items-center">
+                                <Clock className="h-4 w-4 mr-1" />
+                                {formatTimeAgo(submission.submittedAt)}
+                              </p>
+                            </div>
+                            <Badge 
+                              variant={
+                                submission.status === 'submitted' ? 'default' :
+                                submission.status === 'reviewed' ? 'secondary' : 'outline'
+                              }
+                              className={`text-sm px-3 py-1 ${
+                                submission.status === 'submitted' ? 'bg-orange-600' :
+                                submission.status === 'reviewed' ? 'bg-green-600' : ''
+                              }`}
+                            >
+                              {submission.status.charAt(0).toUpperCase() + submission.status.slice(1)}
+                            </Badge>
                           </div>
-                          <Badge 
-                            variant={
-                              submission.status === 'submitted' ? 'default' :
-                              submission.status === 'reviewed' ? 'secondary' : 'outline'
-                            }
-                            className={
-                              submission.status === 'submitted' ? 'bg-orange-600' :
-                              submission.status === 'reviewed' ? 'bg-green-600' : ''
-                            }
-                          >
-                            {submission.status.charAt(0).toUpperCase() + submission.status.slice(1)}
-                          </Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="flex justify-between items-center">
-                          <div className="flex items-center gap-4">
-                            {submission.grade && (
-                              <span className="text-sm font-medium text-green-600">
-                                Grade: {submission.grade}/100
-                              </span>
-                            )}
-                            {submission.documentName && (
-                              <span className="text-sm text-gray-600">
-                                File: {submission.documentName}
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex gap-2">
-                            {submission.documentUrl && (
+                        </CardHeader>
+                        <CardContent>
+                          <div className="flex justify-between items-center">
+                            <div className="flex items-center gap-4">
+                              {submission.grade && (
+                                <span className="text-sm font-semibold text-green-600 bg-green-50 px-3 py-1 rounded-full">
+                                  Grade: {submission.grade}/100
+                                </span>
+                              )}
+                              {submission.documentName && (
+                                <span className="text-sm text-gray-600 flex items-center">
+                                  <File className="h-4 w-4 mr-1" />
+                                  {submission.documentName}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex gap-2">
+                              {submission.documentUrl && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setPreviewDocument(submission)}
+                                  className="hover:bg-blue-50"
+                                >
+                                  <Eye className="h-4 w-4 mr-1" />
+                                  View
+                                </Button>
+                              )}
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => setPreviewDocument(submission)}
+                                onClick={() => handleDownload(submission.documentUrl, submission.documentName)}
+                                className="hover:bg-green-50"
                               >
-                                <Eye className="h-4 w-4 mr-1" />
-                                View
+                                <Download className="h-4 w-4 mr-1" />
+                                Download
                               </Button>
-                            )}
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                // Mock download
-                                console.log('Downloading:', submission.documentName);
-                              }}
-                            >
-                              <Download className="h-4 w-4 mr-1" />
-                              Download
-                            </Button>
-                            <Button variant="outline" size="sm">
-                              <MessageSquare className="h-4 w-4 mr-1" />
-                              Review
-                            </Button>
+                              <Button variant="outline" size="sm" className="hover:bg-purple-50">
+                                <MessageSquare className="h-4 w-4 mr-1" />
+                                Review
+                              </Button>
+                            </div>
                           </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
+                        </CardContent>
+                      </Card>
+                    );
+                  })
+                )}
               </ScrollArea>
             </TabsContent>
 
             <TabsContent value="students" className="space-y-4">
-              <h3 className="text-lg font-semibold">My Students ({stats.totalStudents} total)</h3>
-              <ScrollArea className="h-96">
-                {students.map((student) => (
-                  <div key={student.id} className="flex items-center justify-between p-3 border rounded-lg mb-2">
-                    <div className="flex items-center space-x-3">
-                      <Avatar className="h-10 w-10">
-                        <AvatarFallback className={student.isOnline ? "bg-green-600 text-white" : "bg-gray-600 text-white"}>
-                          {getInitials(student.username)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="font-medium">{student.username}</p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">{student.class_name}</p>
-                        <div className="flex items-center gap-1">
-                          <div className={`w-2 h-2 rounded-full ${student.isOnline ? 'bg-green-500' : 'bg-gray-400'}`}></div>
-                          <span className="text-xs text-gray-500">
-                            {student.isOnline ? 'Online now' : `Last seen ${formatTimeAgo(student.lastActive || new Date())}`}
-                          </span>
+              <h3 className="text-xl font-bold text-gray-800">My Students ({stats.totalStudents} total)</h3>
+              <ScrollArea className="h-[600px]">
+                {students.length === 0 ? (
+                  <Card className="text-center py-12">
+                    <CardContent>
+                      <Users className="h-16 w-16 mx-auto text-gray-300 mb-4" />
+                      <p className="text-gray-500 text-lg mb-2">No students found</p>
+                      <p className="text-gray-400">Students will appear here once they join your classes</p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  students.map((student) => (
+                    <div key={student.id} className="flex items-center justify-between p-4 border rounded-lg mb-3 bg-white shadow-sm hover:shadow-md transition-shadow">
+                      <div className="flex items-center space-x-4">
+                        <div className="relative">
+                          <Avatar className="h-12 w-12 border-2 border-white shadow">
+                            <AvatarFallback className={`text-base ${student.isOnline ? "bg-green-600 text-white" : "bg-gray-600 text-white"}`}>
+                              {getInitials(student.username)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${student.isOnline ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+                        </div>
+                        <div>
+                          <p className="font-semibold text-base">{student.username}</p>
+                          <p className="text-sm text-gray-600">{student.class_name}</p>
+                          <div className="flex items-center gap-1 mt-1">
+                            <span className="text-xs text-gray-500">
+                              {student.isOnline ? '🟢 Online now' : `⚫ Last seen ${formatTimeAgo(student.lastActive || new Date())}`}
+                            </span>
+                          </div>
                         </div>
                       </div>
+                      <div className="flex items-center space-x-2">
+                        <Badge variant={student.isOnline ? "default" : "secondary"} className={`${student.isOnline ? "bg-green-600" : ""} px-3 py-1`}>
+                          {student.isOnline ? "Online" : "Offline"}
+                        </Badge>
+                        <Button variant="ghost" size="sm" className="hover:bg-purple-50">
+                          <MessageSquare className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <Badge variant={student.isOnline ? "default" : "secondary"} className={student.isOnline ? "bg-green-600" : ""}>
-                        {student.isOnline ? "Online" : "Offline"}
-                      </Badge>
-                      <Button variant="ghost" size="sm">
-                        <MessageSquare className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </ScrollArea>
             </TabsContent>
           </Tabs>
@@ -666,19 +1322,17 @@ export default function TeacherDashboard() {
         {/* Sidebar */}
         <div className="space-y-6">
           {/* Calendar */}
-          <Card>
+          <Card className="shadow-lg">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CalendarIcon className="h-5 w-5" />
+              <CardTitle className="flex items-center gap-2 text-xl">
+                <CalendarIcon className="h-5 w-5 text-red-600" />
                 Calendar
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={setSelectedDate}
-                className="rounded-md border"
+              <ModernCalendar
+                selectedDate={selectedDate}
+                onDateChange={setSelectedDate}
               />
             </CardContent>
           </Card>
@@ -700,7 +1354,9 @@ export default function TeacherDashboard() {
         documentName={previewDocument?.documentName}
         documentType={previewDocument?.documentType}
         onDownload={() => {
-          console.log('Downloading:', previewDocument?.documentName);
+          if (previewDocument?.documentUrl && previewDocument?.documentName) {
+            handleDownload(previewDocument.documentUrl, previewDocument.documentName);
+          }
           setPreviewDocument(null);
         }}
       />
