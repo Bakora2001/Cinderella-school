@@ -179,7 +179,7 @@ export default function AdminDashboard() {
     fetchActiveUsers();
     
     // Poll active users every 30 seconds
-    const interval = setInterval(fetchActiveUsers, 3000000);
+    const interval = setInterval(fetchActiveUsers, 30000);
     return () => clearInterval(interval);
   }, []);
 
