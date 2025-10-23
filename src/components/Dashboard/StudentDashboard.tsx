@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,13 +31,14 @@ import {
   File,
   Video,
   Image as ImageIcon,
-  FileCode
+  FileCode,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import ActivityTimeline from '../Shared/ActivityTimeline';
 import NotificationPanel from '../Shared/NotificationPanel';
 import { mockActivities, mockNotifications, mockSubmissions } from '../../data/mockData';
 import { useToast } from '@/hooks/use-toast';
+import AITutorChat from './AITutorChat';
 
 // Modern Calendar Component
 const ModernCalendar = ({ selectedDate, onDateChange }) => {
@@ -1108,6 +1109,9 @@ export default function StudentDashboard() {
           setPreviewDocument(null);
         }}
       />
+
+      {/* AI Tutor Chat Component */}
+      <AITutorChat user={user} toast={toast} />
     </div>
   );
 }
