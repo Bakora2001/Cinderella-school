@@ -557,7 +557,20 @@ export default function StudentDashboard() {
   return (
     <div className="space-y-6 p-6 bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
       {/* API Status Banner */}
-      
+      <Card className="bg-gradient-to-r from-green-50 to-emerald-50 border-green-200 shadow-lg">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-3">
+            <div className="bg-green-600 text-white p-2 rounded-full">
+              <RefreshCw className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-green-800">Live Data Mode</h3>
+              <p className="text-sm text-green-600">Fetching assignments from API for your class. All submissions are saved to the database.</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="border-l-4 border-l-blue-600 shadow-lg hover:shadow-xl transition-shadow">

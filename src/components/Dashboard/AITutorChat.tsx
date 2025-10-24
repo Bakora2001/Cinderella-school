@@ -70,7 +70,8 @@ const AITutorChat: React.FC<AITutorChatProps> = ({ user, toast }) => {
         return;
       }
       
-      const response = await fetch(`http://localhost:5000/api/chatbot/history/${user.id}?limit=20`, {
+      const studentId = user.id;
+      const response = await fetch(`http://localhost:5000/api/chatbot/history/${studentId}?limit=20`, {
         headers: { 
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -116,7 +117,8 @@ const AITutorChat: React.FC<AITutorChatProps> = ({ user, toast }) => {
       
       if (!token) return;
       
-      const response = await fetch(`http://localhost:5000/api/chatbot/stats/${user.id}`, {
+      const studentId = user.id;
+      const response = await fetch(`http://localhost:5000/api/chatbot/stats/${studentId}`, {
         headers: { 
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -153,6 +155,7 @@ const AITutorChat: React.FC<AITutorChatProps> = ({ user, toast }) => {
         content: msg.text
       }));
 
+      const studentId = user.id;
       const response = await fetch('http://localhost:5000/api/chatbot/chat', {
         method: 'POST',
         headers: {
@@ -161,7 +164,7 @@ const AITutorChat: React.FC<AITutorChatProps> = ({ user, toast }) => {
         },
         body: JSON.stringify({
           message: inputMessage,
-          studentId: user.id,
+          studentId: studentId,
           conversationHistory
         })
       });
@@ -205,7 +208,8 @@ const AITutorChat: React.FC<AITutorChatProps> = ({ user, toast }) => {
   const handleClearHistory = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/chatbot/history/${user.id}`, {
+      const studentId = user.id;
+      const response = await fetch(`http://localhost:5000/api/chatbot/history/${studentId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -241,30 +245,57 @@ const AITutorChat: React.FC<AITutorChatProps> = ({ user, toast }) => {
     return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
   };
 
+  const getUserName = () => {
+    return user?.name || user?.firstname || 'Student';
+  };
+
   return (
     <>
-      <Button
-        onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 h-16 w-16 rounded-full shadow-2xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 z-50"
-        size="icon"
-      >
-        <MessageSquare className="h-8 w-8" />
-        <span className="absolute -top-1 -right-1 flex h-6 w-6">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
-          <span className="relative inline-flex rounded-full h-6 w-6 bg-purple-500 items-center justify-center">
-            <Sparkles className="h-3 w-3 text-white" />
-          </span>
-        </span>
-      </Button>
+      {/* Floating Button with Curved Text */}
+      <div className="fixed bottom-6 right-6 z-50">
+        <div className="relative">
+          {/* Curved Text Around Button */}
+          <div className="absolute inset-0 w-32 h-32 -translate-x-8 -translate-y-8">
+            <svg className="w-full h-full animate-spin" style={{ animationDuration: '20s' }}>
+              <defs>
+                <path
+                  id="circle-path"
+                  d="M 64,64 m -50,0 a 50,50 0 1,1 100,0 a 50,50 0 1,1 -100,0"
+                />
+              </defs>
+              <text className="text-xs font-bold fill-black">
+                <textPath href="#circle-path" startOffset="0%">
+                  NC AI Assignment Helper • NC AI Assignment Helper • 
+                </textPath>
+              </text>
+            </svg>
+          </div>
+          
+          {/* Main Button */}
+          <Button
+            onClick={() => setIsOpen(true)}
+            className="h-16 w-16 rounded-full shadow-2xl bg-black hover:bg-gray-800 border-2 border-white relative z-10"
+            size="icon"
+          >
+            <MessageSquare className="h-8 w-8 text-white" />
+            <span className="absolute -top-1 -right-1 flex h-6 w-6">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-gray-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-6 w-6 bg-gray-600 items-center justify-center">
+                <Sparkles className="h-3 w-3 text-white" />
+              </span>
+            </span>
+          </Button>
+        </div>
+      </div>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="max-w-4xl h-[700px] p-0 gap-0">
-          <DialogHeader className="p-6 pb-4 border-b bg-gradient-to-r from-blue-50 to-purple-50">
+        <DialogContent className="max-w-4xl h-[500px] p-0 gap-0 bg-white border-4 border-black">
+          <DialogHeader className="p-5 pb-4 border-b border-gray-300 bg-gradient-to-r from-gray-50 to-white">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-4">
                 <div className="relative">
-                  <Avatar className="h-12 w-12 border-2 border-purple-500">
-                    <AvatarFallback className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+                  <Avatar className="h-12 w-12 border-2 border-black">
+                    <AvatarFallback className="bg-black text-white">
                       <Bot className="h-6 w-6" />
                     </AvatarFallback>
                   </Avatar>
@@ -274,17 +305,17 @@ const AITutorChat: React.FC<AITutorChatProps> = ({ user, toast }) => {
                   </span>
                 </div>
                 <div>
-                  <DialogTitle className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                    AI Tutor Assistant
+                  <DialogTitle className="text-xl font-bold text-black">
+                    New Cinderella AI Assignment Helper
                   </DialogTitle>
-                  <DialogDescription className="text-sm">
-                    Ask me anything about your assignments and studies!
+                  <DialogDescription className="text-sm text-gray-600">
+                    Hello {getUserName()}! Ask me anything about your assignments and studies!
                   </DialogDescription>
                 </div>
               </div>
               <div className="flex items-center gap-2">
                 {stats && (
-                  <Badge variant="outline" className="bg-white">
+                  <Badge variant="outline" className="bg-white border-gray-400 text-gray-700">
                     <BarChart3 className="h-3 w-3 mr-1" />
                     {stats.total_messages} messages
                   </Badge>
@@ -293,7 +324,7 @@ const AITutorChat: React.FC<AITutorChatProps> = ({ user, toast }) => {
                   variant="ghost"
                   size="icon"
                   onClick={handleClearHistory}
-                  className="hover:bg-red-50 hover:text-red-600"
+                  className="hover:bg-gray-100 hover:text-gray-800"
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
@@ -304,77 +335,95 @@ const AITutorChat: React.FC<AITutorChatProps> = ({ user, toast }) => {
           <ScrollArea className="flex-1 p-6" ref={scrollRef}>
             {messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center">
-                <div className="bg-gradient-to-r from-blue-100 to-purple-100 rounded-full p-6 mb-4">
-                  <Sparkles className="h-12 w-12 text-purple-600" />
+                <div className="bg-gray-100 rounded-full p-6 mb-4 border-2 border-black">
+                  <Sparkles className="h-12 w-12 text-black" />
                 </div>
-                <h3 className="text-xl font-semibold text-gray-700 mb-2">
-                  👋 Hello {user?.name || user?.firstname || 'Student'}!
+                <h3 className="text-2xl font-semibold text-black mb-3">
+                  👋 Hello {getUserName()}!
                 </h3>
-                <p className="text-gray-600 max-w-md">
-                  I'm your AI tutor assistant. I can help you understand your assignments, 
+                <p className="text-gray-700 max-w-lg mb-8 text-lg">
+                  I'm your NC AI Assignment Helper. I can help you understand your assignments, 
                   explain concepts, and guide you through your studies. What would you like to learn about today?
                 </p>
-                <div className="grid grid-cols-2 gap-3 mt-6">
-                  <Button variant="outline" className="text-left justify-start" onClick={() => setInputMessage("Can you explain how to solve quadratic equations?")}>
+                <div className="grid grid-cols-2 gap-4 w-full max-w-2xl">
+                  <Button 
+                    variant="outline" 
+                    className="text-left justify-start border-black hover:bg-gray-100 hover:border-gray-600 h-16 text-base" 
+                    onClick={() => setInputMessage("Can you explain how to solve quadratic equations?")}
+                  >
                     📐 Math Help
                   </Button>
-                  <Button variant="outline" className="text-left justify-start" onClick={() => setInputMessage("What's the difference between photosynthesis and respiration?")}>
+                  <Button 
+                    variant="outline" 
+                    className="text-left justify-start border-black hover:bg-gray-100 hover:border-gray-600 h-16 text-base" 
+                    onClick={() => setInputMessage("What's the difference between photosynthesis and respiration?")}
+                  >
                     🧪 Science Questions
                   </Button>
-                  <Button variant="outline" className="text-left justify-start" onClick={() => setInputMessage("How do I write a good essay?")}>
+                  <Button 
+                    variant="outline" 
+                    className="text-left justify-start border-black hover:bg-gray-100 hover:border-gray-600 h-16 text-base" 
+                    onClick={() => setInputMessage("How do I write a good essay?")}
+                  >
                     ✍️ Writing Tips
                   </Button>
-                  <Button variant="outline" className="text-left justify-start" onClick={() => setInputMessage("Can you help me with my assignment?")}>
+                  <Button 
+                    variant="outline" 
+                    className="text-left justify-start border-black hover:bg-gray-100 hover:border-gray-600 h-16 text-base" 
+                    onClick={() => setInputMessage("Can you help me with my assignment?")}
+                  >
                     📚 Assignment Help
                   </Button>
                 </div>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-6">
                 {messages.map((message) => (
-                  <div key={message.id} className={`flex gap-3 ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div key={message.id} className={`flex gap-4 ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
                     {message.sender === 'ai' && (
-                      <Avatar className="h-8 w-8 border-2 border-purple-300">
-                        <AvatarFallback className="bg-gradient-to-r from-blue-500 to-purple-500 text-white">
-                          <Bot className="h-4 w-4" />
+                      <Avatar className="h-10 w-10 border-2 border-gray-400">
+                        <AvatarFallback className="bg-black text-white">
+                          <Bot className="h-5 w-5" />
                         </AvatarFallback>
                       </Avatar>
                     )}
-                    <div className={`max-w-[70%] rounded-2xl px-4 py-3 ${
+                    <div className={`max-w-[70%] rounded-2xl px-5 py-4 ${
                       message.sender === 'user'
-                        ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white'
+                        ? 'bg-black text-white'
                         : message.isError
-                        ? 'bg-red-50 border border-red-200 text-red-800'
-                        : 'bg-gray-100 text-gray-800'
+                        ? 'bg-gray-100 border-2 border-gray-300 text-gray-800'
+                        : 'bg-gray-100 text-gray-800 border-2 border-gray-300'
                     }`}>
-                      <p className="text-sm whitespace-pre-wrap">{message.text}</p>
-                      <div className={`flex items-center gap-2 mt-1 text-xs ${message.sender === 'user' ? 'text-blue-100' : 'text-gray-500'}`}>
+                      <p className="text-base whitespace-pre-wrap leading-relaxed">{message.text}</p>
+                      <div className={`flex items-center gap-2 mt-2 text-sm ${
+                        message.sender === 'user' ? 'text-gray-300' : 'text-gray-500'
+                      }`}>
                         <span>{formatTime(message.timestamp)}</span>
                         {message.model && (
-                          <Badge variant="outline" className="text-xs h-4 px-1 bg-white/20">
+                          <Badge variant="outline" className="text-xs h-5 px-2 bg-white/20 border-white/30">
                             {message.model}
                           </Badge>
                         )}
                       </div>
                     </div>
                     {message.sender === 'user' && (
-                      <Avatar className="h-8 w-8 border-2 border-blue-300">
-                        <AvatarFallback className="bg-gradient-to-r from-blue-600 to-blue-400 text-white">
-                          <User className="h-4 w-4" />
+                      <Avatar className="h-10 w-10 border-2 border-gray-400">
+                        <AvatarFallback className="bg-gray-600 text-white">
+                          <User className="h-5 w-5" />
                         </AvatarFallback>
                       </Avatar>
                     )}
                   </div>
                 ))}
                 {isLoading && (
-                  <div className="flex gap-3 justify-start">
-                    <Avatar className="h-8 w-8 border-2 border-purple-300">
-                      <AvatarFallback className="bg-gradient-to-r from-blue-500 to-purple-500 text-white">
-                        <Bot className="h-4 w-4" />
+                  <div className="flex gap-4 justify-start">
+                    <Avatar className="h-10 w-10 border-2 border-gray-400">
+                      <AvatarFallback className="bg-black text-white">
+                        <Bot className="h-5 w-5" />
                       </AvatarFallback>
                     </Avatar>
-                    <div className="bg-gray-100 rounded-2xl px-4 py-3">
-                      <div className="flex gap-1">
+                    <div className="bg-gray-100 rounded-2xl px-5 py-4 border-2 border-gray-300">
+                      <div className="flex gap-1 text-black">
                         <span className="animate-bounce">●</span>
                         <span className="animate-bounce" style={{animationDelay: '0.1s'}}>●</span>
                         <span className="animate-bounce" style={{animationDelay: '0.2s'}}>●</span>
@@ -386,29 +435,35 @@ const AITutorChat: React.FC<AITutorChatProps> = ({ user, toast }) => {
             )}
           </ScrollArea>
 
-          <div className="p-4 border-t bg-white">
-            <div className="flex gap-2">
-              <Input
-                value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="Ask me anything about your studies..."
-                className="flex-1"
-                disabled={isLoading}
-              />
+          <div className="p-6 border-t border-gray-300 bg-white">
+            <div className="flex gap-4">
+              <div className="flex-1 relative">
+                <Input
+                  value={inputMessage}
+                  onChange={(e) => setInputMessage(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  placeholder="Ask me anything about your studies..."
+                  className="min-h-[60px] py-4 px-5 text-base rounded-xl border-2 border-gray-400 focus:border-black focus:ring-black resize-none"
+                  disabled={isLoading}
+                  style={{ 
+                    minHeight: '60px',
+                    lineHeight: '1.5'
+                  }}
+                />
+              </div>
               <Button
                 onClick={handleSendMessage}
                 disabled={isLoading || !inputMessage.trim()}
-                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                className="h-[60px] px-8 bg-black hover:bg-gray-800 border-2 border-black rounded-xl"
               >
                 {isLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Loader2 className="h-6 w-6 animate-spin" />
                 ) : (
-                  <Send className="h-4 w-4" />
+                  <Send className="h-6 w-6" />
                 )}
               </Button>
             </div>
-            <p className="text-xs text-gray-500 mt-2 text-center">
+            <p className="text-sm text-gray-500 mt-3 text-center">
               💡 Tip: Press Enter to send, Shift+Enter for new line
             </p>
           </div>
