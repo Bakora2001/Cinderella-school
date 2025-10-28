@@ -300,7 +300,7 @@ export default function TeacherDashboard() {
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/getallusers');
+      const response = await fetch('http://localhost:5000/api/users/getallusers');
       const data = await response.json();
       if (data.success) setUsers(data.users.map((user) => ({...user, username: `${user.firstname || ''} ${user.sirname || ''}`.trim() || user.email.split('@')[0], class_name: user.class, isOnline: false, lastActive: new Date()})));
     } catch (error) {
@@ -432,15 +432,6 @@ export default function TeacherDashboard() {
 
   return (
     <div className="space-y-6 p-6 bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
-      <Card className="bg-gradient-to-r from-green-50 to-emerald-50 border-green-200 shadow-lg">
-        <CardContent className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="bg-green-600 text-white p-2 rounded-full"><RefreshCw className="h-5 w-5" /></div>
-            <div><h3 className="font-semibold text-green-800">Live Data Mode</h3><p className="text-sm text-green-600">Fetching assignments and submissions from API. All changes are saved to the database.</p></div>
-          </div>
-        </CardContent>
-      </Card>
-
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="border-l-4 border-l-red-600 shadow-lg hover:shadow-xl transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
