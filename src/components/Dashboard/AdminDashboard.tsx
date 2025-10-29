@@ -270,7 +270,7 @@ export default function AdminDashboard() {
     setIsLoading(true);
 
     try {
-      const response = await fetch(`http://localhost:5000/api/edituserdata/${editingUser.id}`, {
+      const response = await fetch(`http://localhost:5000/api/users/edituserdata/${editingUser.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -320,7 +320,7 @@ export default function AdminDashboard() {
     if (!confirm('Are you sure you want to delete this user?')) return;
 
     try {
-      const response = await fetch(`http://localhost:5000/api/deleteuser/${userId}`, {
+      const response = await fetch(`http://localhost:5000/api/users/deleteuser/${userId}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
