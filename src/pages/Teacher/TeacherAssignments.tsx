@@ -10,6 +10,42 @@ import DocumentPreview from '@/components/Shared/DocumentPreview';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
+// Stylish Date Time Display Component
+const StylishDateTime = ({ date }) => {
+  const formatDate = (dateObj) => {
+    const options = { month: 'short', day: 'numeric', year: 'numeric' };
+    return dateObj.toLocaleDateString('en-US', options);
+  };
+
+  const formatTime = (dateObj) => {
+    let hours = dateObj.getHours();
+    const minutes = dateObj.getMinutes();
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+    const minutesStr = minutes < 10 ? '0' + minutes : minutes;
+    return { time: `${hours}:${minutesStr}`, ampm };
+  };
+
+  const timeInfo = formatTime(date);
+
+  return (
+    <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5 bg-red-50 px-2.5 py-1 rounded-lg border border-red-200">
+        <CalendarIcon className="h-3.5 w-3.5 text-red-600" />
+        <span className="text-xs font-medium text-red-700">{formatDate(date)}</span>
+      </div>
+      <div className="flex items-center gap-1 bg-purple-50 px-2.5 py-1 rounded-lg border border-purple-200">
+        <Clock className="h-3.5 w-3.5 text-purple-600" />
+        <span className="text-xs font-semibold text-purple-700">{timeInfo.time}</span>
+        <span className="text-[10px] font-bold text-purple-600 bg-purple-200 px-1 py-0.5 rounded">
+          {timeInfo.ampm}
+        </span>
+      </div>
+    </div>
+  );
+};
+
 export default function TeacherAssignments() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -25,7 +61,20 @@ export default function TeacherAssignments() {
   const getDocumentTypeFromPath = (filePath) => {
     if (!filePath) return 'application/octet-stream';
     const ext = filePath.split('.').pop()?.toLowerCase();
-    const typeMap = {'pdf': 'application/pdf', 'doc': 'application/msword', 'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'txt': 'text/plain', 'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png', 'gif': 'image/gif', 'mp4': 'video/mp4', 'avi': 'video/x-msvideo', 'mov': 'video/quicktime', 'wmv': 'video/x-ms-wmv'};
+    const typeMap = {
+      'pdf': 'application/pdf',
+      'doc': 'application/msword',
+      'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'txt': 'text/plain',
+      'jpg': 'image/jpeg',
+      'jpeg': 'image/jpeg',
+      'png': 'image/png',
+      'gif': 'image/gif',
+      'mp4': 'video/mp4',
+      'avi': 'video/x-msvideo',
+      'mov': 'video/quicktime',
+      'wmv': 'video/x-ms-wmv'
+    };
     return typeMap[ext || ''] || 'application/octet-stream';
   };
 
@@ -36,7 +85,7 @@ export default function TeacherAssignments() {
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(`http://localhost:5000/api/submissions/teacher/${currentUserId}/submissions`, {
-        headers: {'Authorization': `Bearer ${token}`}
+        headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await response.json();
       
@@ -62,7 +111,7 @@ export default function TeacherAssignments() {
       setRefreshing(showRefreshToast);
       const token = localStorage.getItem('token');
       const response = await fetch(`http://localhost:5000/api/assignments/teacher/${currentUserId}`, {
-        headers: {'Authorization': `Bearer ${token}`}
+        headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await response.json();
       
@@ -85,11 +134,20 @@ export default function TeacherAssignments() {
           isEdited: new Date(assignment.updated_at || assignment.created_at).getTime() !== new Date(assignment.created_at).getTime()
         }));
         setAssignments(transformedAssignments);
-        if (showRefreshToast) toast({title: "Success", description: `Loaded ${transformedAssignments.length} assignment${transformedAssignments.length !== 1 ? 's' : ''}`});
+        if (showRefreshToast) {
+          toast({
+            title: "Success",
+            description: `Loaded ${transformedAssignments.length} assignment${transformedAssignments.length !== 1 ? 's' : ''}`
+          });
+        }
       }
     } catch (error) {
       console.error('Error fetching assignments:', error);
-      toast({title: "Error", description: "Failed to fetch assignments", variant: "destructive"});
+      toast({
+        title: "Error",
+        description: "Failed to fetch assignments",
+        variant: "destructive"
+      });
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -125,30 +183,30 @@ export default function TeacherAssignments() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 p-4">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">My Assignments</h1>
-          <p className="text-gray-600 mt-1">Manage and view all your assignments</p>
+          <h1 className="text-2xl font-bold text-gray-900">My Assignments</h1>
+          <p className="text-sm text-gray-600 mt-0.5">Manage and view all your assignments</p>
         </div>
-        <Button variant="outline" onClick={() => fetchTeacherAssignments(true)} disabled={refreshing}>
-          <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+        <Button variant="outline" size="sm" onClick={() => fetchTeacherAssignments(true)} disabled={refreshing}>
+          <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${refreshing ? 'animate-spin' : ''}`} />
           Refresh
         </Button>
       </div>
 
       {loading ? (
-        <div className="flex justify-center items-center h-96">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600"></div>
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-red-600"></div>
         </div>
       ) : (
         <ScrollArea className="h-[calc(100vh-200px)]">
           {assignments.length === 0 ? (
-            <Card className="text-center py-12">
+            <Card className="text-center py-8">
               <CardContent>
-                <FileText className="h-16 w-16 mx-auto text-gray-300 mb-4" />
-                <p className="text-gray-500 text-lg mb-2">No assignments yet</p>
-                <p className="text-gray-400">Create your first assignment to get started!</p>
+                <FileText className="h-12 w-12 mx-auto text-gray-300 mb-3" />
+                <p className="text-gray-500 text-base mb-1">No assignments yet</p>
+                <p className="text-gray-400 text-sm">Create your first assignment to get started!</p>
               </CardContent>
             </Card>
           ) : (
@@ -158,63 +216,69 @@ export default function TeacherAssignments() {
               const submissionCount = assignmentSubmissions.length;
               
               return (
-                <Card key={assignment.id} className="mb-4 shadow-md hover:shadow-lg transition-shadow border-l-4 border-l-red-600">
-                  <CardHeader>
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <CardTitle className="text-xl text-gray-800">{assignment.title}</CardTitle>
-                        <CardDescription className="mt-1 text-base">{assignment.description}</CardDescription>
+                <Card key={assignment.id} className="mb-3 shadow-md hover:shadow-lg transition-shadow border-l-4 border-l-red-600">
+                  <CardHeader className="p-4 pb-2">
+                    <div className="flex justify-between items-start gap-3">
+                      <div className="flex-1 min-w-0">
+                        <CardTitle className="text-lg text-gray-800 truncate">{assignment.title}</CardTitle>
+                        <CardDescription className="mt-1 text-sm line-clamp-2">{assignment.description}</CardDescription>
                         {assignment.instructions && (
-                          <p className="text-sm text-gray-600 mt-2 italic">Instructions: {assignment.instructions}</p>
+                          <p className="text-xs text-gray-600 mt-1.5 italic line-clamp-1">
+                            📝 {assignment.instructions}
+                          </p>
                         )}
-                        <div className="flex items-center gap-2 mt-3 flex-wrap">
-                          <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-300">{assignment.class}</Badge>
-                          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300">{assignment.subject}</Badge>
-                          {assignment.isEdited && <Badge className="bg-orange-600">Edited</Badge>}
-                          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
-                            Created {formatTimeAgo(assignment.createdAt)}
+                        <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                          <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-300 text-xs px-2 py-0">
+                            {assignment.class}
+                          </Badge>
+                          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300 text-xs px-2 py-0">
+                            {assignment.subject}
+                          </Badge>
+                          {assignment.isEdited && <Badge className="bg-orange-600 text-xs px-2 py-0">Edited</Badge>}
+                          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300 text-xs px-2 py-0">
+                            {formatTimeAgo(assignment.createdAt)}
                           </Badge>
                         </div>
                       </div>
                       <Badge 
                         variant={daysUntilDue < 0 ? "destructive" : daysUntilDue <= 2 ? "default" : "secondary"} 
-                        className={`text-base px-3 py-1 ${daysUntilDue <= 2 && daysUntilDue >= 0 ? "bg-orange-600" : ""}`}
+                        className={`text-xs px-2.5 py-1 flex-shrink-0 ${daysUntilDue <= 2 && daysUntilDue >= 0 ? "bg-orange-600" : ""}`}
                       >
-                        {daysUntilDue < 0 ? "Overdue" : `${daysUntilDue} days left`}
+                        {daysUntilDue < 0 ? "Overdue" : `${daysUntilDue}d left`}
                       </Badge>
                     </div>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="p-4 pt-2">
                     {submissionCount > 0 && (
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-2.5 mb-3">
                         <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-semibold text-blue-900">📝 Recent Submissions ({submissionCount})</h4>
+                          <h4 className="font-semibold text-sm text-blue-900">📝 Submissions ({submissionCount})</h4>
                           <Button 
                             variant="ghost" 
                             size="sm"
                             onClick={() => setSelectedAssignmentForSubmissions(assignment)}
-                            className="text-blue-700 hover:text-blue-900 hover:bg-blue-100"
+                            className="text-blue-700 hover:text-blue-900 hover:bg-blue-100 h-7 text-xs"
                           >
-                            View All <Eye className="h-4 w-4 ml-1" />
+                            View All <Eye className="h-3 w-3 ml-1" />
                           </Button>
                         </div>
-                        <div className="space-y-2">
-                          {assignmentSubmissions.slice(0, 3).map((sub) => (
+                        <div className="space-y-1.5">
+                          {assignmentSubmissions.slice(0, 2).map((sub) => (
                             <div key={sub.id} className="flex items-center justify-between bg-white p-2 rounded border border-blue-100">
                               <div className="flex items-center gap-2">
-                                <Avatar className="h-8 w-8">
-                                  <AvatarFallback className="bg-blue-600 text-white text-xs">
+                                <Avatar className="h-7 w-7">
+                                  <AvatarFallback className="bg-blue-600 text-white text-[10px]">
                                     {getInitials(sub.student_name || 'Student')}
                                   </AvatarFallback>
                                 </Avatar>
                                 <div>
-                                  <p className="text-sm font-medium">{sub.student_name}</p>
-                                  <p className="text-xs text-gray-500">{formatTimeAgo(new Date(sub.submitted_at))}</p>
+                                  <p className="text-xs font-medium">{sub.student_name}</p>
+                                  <p className="text-[10px] text-gray-500">{formatTimeAgo(new Date(sub.submitted_at))}</p>
                                 </div>
                               </div>
                               <Badge 
                                 variant={sub.status === 'submitted' ? 'default' : 'secondary'}
-                                className={`text-xs ${sub.status === 'submitted' ? 'bg-orange-600' : 'bg-green-600'}`}
+                                className={`text-[10px] px-1.5 py-0.5 ${sub.status === 'submitted' ? 'bg-orange-600' : 'bg-green-600'}`}
                               >
                                 {sub.status}
                               </Badge>
@@ -224,25 +288,31 @@ export default function TeacherAssignments() {
                       </div>
                     )}
 
-                    <div className="flex justify-between items-center pt-4 border-t">
-                      <div className="flex items-center gap-4">
-                        <span className="text-sm text-gray-600 flex items-center">
-                          <CalendarIcon className="h-4 w-4 mr-1" />
-                          Due: {assignment.dueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                        <span className="text-sm text-gray-600 flex items-center">
-                          <Upload className="h-4 w-4 mr-1" />
-                          Submissions: {submissionCount}
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pt-3 border-t">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                        <StylishDateTime date={assignment.dueDate} />
+                        <span className="text-xs text-gray-600 flex items-center bg-gray-50 px-2 py-1 rounded">
+                          <Upload className="h-3 w-3 mr-1" />
+                          {submissionCount} submission{submissionCount !== 1 ? 's' : ''}
                         </span>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 flex-wrap">
                         {assignment.documentUrl && (
-                          <Button variant="outline" size="sm" onClick={() => setPreviewDocument(assignment)} className="hover:bg-blue-50">
-                            <Eye className="h-4 w-4 mr-1" />View Document
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => setPreviewDocument(assignment)} 
+                            className="hover:bg-blue-50 h-8 text-xs"
+                          >
+                            <Eye className="h-3 w-3 mr-1" />View Doc
                           </Button>
                         )}
-                        <Button variant="outline" size="sm" className="hover:bg-green-50">
-                          <Edit className="h-4 w-4 mr-1" />Edit
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="hover:bg-green-50 h-8 text-xs"
+                        >
+                          <Edit className="h-3 w-3 mr-1" />Edit
                         </Button>
                       </div>
                     </div>
@@ -269,7 +339,7 @@ export default function TeacherAssignments() {
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-            toast({title: "Success", description: "Document downloaded successfully!"});
+            toast({ title: "Success", description: "Document downloaded successfully!" });
           }
           setPreviewDocument(null);
         }} 
@@ -277,31 +347,31 @@ export default function TeacherAssignments() {
 
       {selectedAssignmentForSubmissions && (
         <Dialog open={!!selectedAssignmentForSubmissions} onOpenChange={() => setSelectedAssignmentForSubmissions(null)}>
-          <DialogContent className="max-w-5xl max-h-[90vh] overflow-auto">
+          <DialogContent className="max-w-4xl max-h-[85vh] overflow-auto">
             <DialogHeader>
-              <DialogTitle className="text-2xl">{selectedAssignmentForSubmissions.title}</DialogTitle>
-              <DialogDescription>View all submissions for this assignment</DialogDescription>
+              <DialogTitle className="text-xl">{selectedAssignmentForSubmissions.title}</DialogTitle>
+              <DialogDescription className="text-sm">View all submissions for this assignment</DialogDescription>
             </DialogHeader>
-            <ScrollArea className="h-[500px] mt-4">
+            <ScrollArea className="h-[400px] mt-3">
               {getSubmissionsForAssignment(selectedAssignmentForSubmissions.id).map((sub) => (
-                <Card key={sub.id} className="mb-4">
-                  <CardHeader>
+                <Card key={sub.id} className="mb-3">
+                  <CardHeader className="p-3">
                     <div className="flex justify-between items-center">
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-10 w-10">
-                          <AvatarFallback className="bg-blue-600 text-white">
+                      <div className="flex items-center gap-2.5">
+                        <Avatar className="h-9 w-9">
+                          <AvatarFallback className="bg-red-600 text-white text-sm">
                             {getInitials(sub.student_name || 'Student')}
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <p className="font-semibold">{sub.student_name}</p>
-                          <p className="text-sm text-gray-500 flex items-center">
+                          <p className="font-semibold text-sm">{sub.student_name}</p>
+                          <p className="text-xs text-gray-500 flex items-center">
                             <Clock className="h-3 w-3 mr-1" />
                             {formatTimeAgo(new Date(sub.submitted_at))}
                           </p>
                         </div>
                       </div>
-                      <Badge className={sub.status === 'submitted' ? 'bg-orange-600' : 'bg-green-600'}>
+                      <Badge className={`text-xs ${sub.status === 'submitted' ? 'bg-orange-600' : 'bg-green-600'}`}>
                         {sub.status}
                       </Badge>
                     </div>

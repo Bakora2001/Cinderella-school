@@ -172,7 +172,7 @@ export default function Sidebar({ activeTab, onTabChange, isOpen, onToggle }: Si
         {/* Footer */}
         <div className="p-3 sm:p-4 border-t border-gray-700">
           <p className="text-xs text-gray-500 text-center">
-            © 2024 Cinderella School
+            © 2025 Cinderella School
           </p>
         </div>
       </div>

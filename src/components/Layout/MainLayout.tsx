@@ -9,16 +9,16 @@ import StudentDashboard from '../Dashboard/StudentDashboard';
 // Import new page components
 import TeacherAssignments from '../../pages/Teacher/TeacherAssignments';
 import TeacherCreateAssignment from '../../pages/Teacher/TeacherCreateAssignment';
-// import TeacherSubmissions from '../../pages/Teacher/TeacherSubmissions';
-// import TeacherStudents from '../../pages/Teacher/TeacherStudents';
-// import TeacherCalendar from '../../pages/Teacher/TeacherCalendar';
-// import TeacherActivity from '../../pages/Teacher/TeacherActivity';
+import TeacherSubmissions from '../../pages/Teacher/TeacherSubmissions';
+import TeacherStudents from '../../pages/Teacher/TeacherStudents';
+import TeacherCalendar from '../../pages/Teacher/TeacherCalendar';
+import TeacherActivity from '../../pages/Teacher/TeacherActivity';
 
-// import StudentAssignments from '../Pages/Student/StudentAssignments';
-// import StudentSubmissions from '../Pages/Student/StudentSubmissions';
-// import StudentCalendar from '../Pages/Student/StudentCalendar';
-// import StudentActivity from '../Pages/Student/StudentActivity';
-// import StudentHelp from '../Pages/Student/StudentHelp';
+import StudentAssignments from '../../pages/Student/StudentAssignments';
+import StudentSubmissions from '../../pages/Student/StudentSubmissions';
+import StudentCalendar from '../../pages/Student/StudentCalendar';
+import StudentActivity from '../../pages/Student/StudentActivity';
+import StudentHelp from '../../pages/Student/StudentHelp';
 
 // import AdminUsers from '../Pages/Admin/AdminUsers';
 // import AdminAssignments from '../Pages/Admin/AdminAssignments';
@@ -66,15 +66,15 @@ export default function MainLayout() {
             return <TeacherAssignments />;
           case 'create':
             return <TeacherCreateAssignment />;
-          // case 'submissions':
-          //   return <TeacherSubmissions />;
-          // case 'students':
-          //   return <TeacherStudents />;
-          // case 'calendar':
-          //   return <TeacherCalendar />;
-          // case 'activity':
-          //   return <TeacherActivity />;
-          // default:ss
+          case 'submissions':
+            return <TeacherSubmissions />;
+          case 'students':
+            return <TeacherStudents />;
+          case 'calendar':
+            return <TeacherCalendar />;
+          case 'activity':
+            return <TeacherActivity />;
+          default:
             return <TeacherDashboard />;
         }
       
@@ -82,16 +82,16 @@ export default function MainLayout() {
         switch (activeTab) {
           case 'dashboard':
             return <StudentDashboard />;
-          // case 'assignments':
-          //   return <StudentAssignments />;
-          // case 'submissions':
-          //   return <StudentSubmissions />;
-          // case 'calendar':
-          //   return <StudentCalendar />;
-          // case 'activity':
-          //   return <StudentActivity />;
-          // case 'help':
-          //   return <StudentHelp />;
+          case 'assignments':
+            return <StudentAssignments />;
+          case 'submissions':
+            return <StudentSubmissions />;
+          case 'calendar':
+            return <StudentCalendar />;
+          case 'activity':
+            return <StudentActivity />;
+          case 'help':
+            return <StudentHelp />;
           default:
             return <StudentDashboard />;
         }
