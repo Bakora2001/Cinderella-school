@@ -218,14 +218,12 @@ export default function TeacherDashboard() {
       setSubmissionsLoading(!showRefreshToast);
       const token = localStorage.getItem('token');
       
-      console.log('🔍 Fetching submissions for teacher:', currentUserId);
       
       const response = await fetch(`http://localhost:5000/api/submissions/teacher/${currentUserId}/submissions`, {
         headers: {'Authorization': `Bearer ${token}`}
       });
       
       const data = await response.json();
-      console.log('📨 Submissions API Response:', data);
       
       if (data.success) {
         // Transform the submissions data to ensure proper formatting
@@ -247,7 +245,6 @@ export default function TeacherDashboard() {
           updated_at: sub.updated_at
         }));
         
-        console.log('✅ Transformed submissions:', transformedSubmissions);
         setTeacherSubmissions(transformedSubmissions);
         
         if (showRefreshToast) {
@@ -297,16 +294,41 @@ export default function TeacherDashboard() {
       setRefreshing(false);
     }
   };
+const fetchUsers = async () => {
+  try {
+    const url = 'http://localhost:5000/api/users/getallusers';
+    
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+     // Try to get error details from response body
+      const errorText = await response.text();
 
-  const fetchUsers = async () => {
-    try {
-      const response = await fetch('http://localhost:5000/api/users/getallusers');
-      const data = await response.json();
-      if (data.success) setUsers(data.users.map((user) => ({...user, username: `${user.firstname || ''} ${user.sirname || ''}`.trim() || user.email.split('@')[0], class_name: user.class, isOnline: false, lastActive: new Date()})));
-    } catch (error) {
-      console.error('Error fetching the users:', error);
+      console.log(errorText, "Get all users cracked")
+      return;
     }
-  };
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      console.log('✅ [FRONTEND DEBUG] Success! Processing', data.users.length, 'users');
+      setUsers(data.users.map((user) => ({
+        ...user, 
+        username: `${user.username || ''}`.trim() || user.email.split('@')[0], 
+        class_name: user.class_name, 
+        isOnline: false, 
+        lastActive: new Date()
+      })));
+    } else {
+      console.error('❌ [FRONTEND DEBUG] API returned success: false', data.message);
+    }
+    
+  } catch (error) {
+    console.error('❌ [FRONTEND DEBUG] Network/fetch error:', error);
+    console.error('❌ [FRONTEND DEBUG] Error name:', error.name);
+    console.error('❌ [FRONTEND DEBUG] Error message:', error.message);
+  }
+};
 
   const fetchActiveUsers = async () => {
     try {

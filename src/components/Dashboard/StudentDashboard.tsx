@@ -376,7 +376,7 @@ export default function StudentDashboard() {
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/getallusers');
+      const response = await fetch('http://localhost:5000/api/users/getallusers');
       const data = await response.json();
       
       if (data.success) {

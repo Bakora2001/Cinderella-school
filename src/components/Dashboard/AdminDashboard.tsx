@@ -114,7 +114,7 @@ export default function AdminDashboard() {
   // Fetch users using getallusers endpoint (different table structure with firstname, sirname)
   const fetchAllUsers = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/getallusers');
+      const response = await fetch('http://localhost:5000/api/users/getallusers');
       const data = await response.json();
       
       if (data.success) {
@@ -122,7 +122,7 @@ export default function AdminDashboard() {
           ...user,
           id: user.id?.toString() || '',
           username: `${user.username || ''}`.trim() || user.email.split('@')[0],
-          class_name: user.class,
+          class_name: user.class_name,
           isOnline: false,
           lastActive: new Date()
         }));
