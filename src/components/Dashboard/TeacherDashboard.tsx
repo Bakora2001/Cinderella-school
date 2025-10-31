@@ -10,16 +10,22 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { FileText, Upload, Download, Eye, Edit, Calendar as CalendarIcon, Clock, Users, MessageSquare, Plus, Search, X, File, Video, Image as ImageIcon, FileCode, RefreshCw } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { FileText, Upload, Download, Eye, Edit, Calendar as CalendarIcon, Clock, Users, MessageSquare, Plus, Search, X, File, Video, Image as ImageIcon, FileCode, RefreshCw, Trash2 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import ActivityTimeline from '../Shared/ActivityTimeline';
-import { mockActivities } from '../../data/mockData';
 import { useToast } from '@/hooks/use-toast';
 
 const CircularClock = ({ selectedTime, onTimeChange }) => {
   const [hours, setHours] = useState(selectedTime.getHours());
   const [minutes, setMinutes] = useState(selectedTime.getMinutes());
   const [isHourMode, setIsHourMode] = useState(true);
+  
+  useEffect(() => {
+    setHours(selectedTime.getHours());
+    setMinutes(selectedTime.getMinutes());
+  }, [selectedTime]);
+
   const handleClockClick = (e) => {
     const clock = e.currentTarget;
     const rect = clock.getBoundingClientRect();
@@ -27,11 +33,13 @@ const CircularClock = ({ selectedTime, onTimeChange }) => {
     const y = e.clientY - rect.top - rect.height / 2;
     const angle = Math.atan2(y, x);
     const degrees = (angle * 180 / Math.PI + 90 + 360) % 360;
+    
     if (isHourMode) {
-      const newHours = Math.round(degrees / 30) % 12 || 12;
-      setHours(newHours);
+      const newHours = Math.round(degrees / 30) % 12;
+      const finalHours = newHours === 0 ? 12 : newHours;
+      setHours(finalHours);
       const newDate = new Date(selectedTime);
-      newDate.setHours(newHours);
+      newDate.setHours(finalHours);
       onTimeChange(newDate);
     } else {
       const newMinutes = Math.round(degrees / 6) % 60;
@@ -41,12 +49,23 @@ const CircularClock = ({ selectedTime, onTimeChange }) => {
       onTimeChange(newDate);
     }
   };
+
   return (
     <div className="flex flex-col items-center gap-4">
       <div className="flex gap-2 text-3xl font-bold">
-        <button onClick={() => setIsHourMode(true)} className={`px-4 py-2 rounded-lg transition-colors ${isHourMode ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-600'}`}>{hours.toString().padStart(2, '0')}</button>
+        <button 
+          onClick={() => setIsHourMode(true)} 
+          className={`px-4 py-2 rounded-lg transition-colors ${isHourMode ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-600'}`}
+        >
+          {hours.toString().padStart(2, '0')}
+        </button>
         <span className="py-2">:</span>
-        <button onClick={() => setIsHourMode(false)} className={`px-4 py-2 rounded-lg transition-colors ${!isHourMode ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-600'}`}>{minutes.toString().padStart(2, '0')}</button>
+        <button 
+          onClick={() => setIsHourMode(false)} 
+          className={`px-4 py-2 rounded-lg transition-colors ${!isHourMode ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-600'}`}
+        >
+          {minutes.toString().padStart(2, '0')}
+        </button>
       </div>
       <div className="relative w-64 h-64 bg-gradient-to-br from-gray-50 to-gray-100 rounded-full shadow-inner cursor-pointer" onClick={handleClockClick}>
         {(isHourMode ? [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] : [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55]).map((num, i) => {
@@ -54,9 +73,33 @@ const CircularClock = ({ selectedTime, onTimeChange }) => {
           const radius = 100;
           const x = Math.cos(angle) * radius;
           const y = Math.sin(angle) * radius;
-          return <div key={num} className="absolute text-sm font-semibold text-gray-600" style={{left: `calc(50% + ${x}px - 10px)`, top: `calc(50% + ${y}px - 10px)`, width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>{num}</div>;
+          return (
+            <div 
+              key={num} 
+              className="absolute text-sm font-semibold text-gray-600" 
+              style={{
+                left: `calc(50% + ${x}px - 10px)`, 
+                top: `calc(50% + ${y}px - 10px)`, 
+                width: '20px', 
+                height: '20px', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center'
+              }}
+            >
+              {num}
+            </div>
+          );
         })}
-        <div className="absolute w-1 bg-red-600 origin-bottom rounded-full transition-transform duration-200" style={{height: '80px', left: 'calc(50% - 2px)', top: 'calc(50% - 80px)', transform: `rotate(${isHourMode ? (hours % 12) * 30 : minutes * 6}deg)`}}>
+        <div 
+          className="absolute w-1 bg-red-600 origin-bottom rounded-full transition-transform duration-200" 
+          style={{
+            height: '80px', 
+            left: 'calc(50% - 2px)', 
+            top: 'calc(50% - 80px)', 
+            transform: `rotate(${isHourMode ? (hours % 12) * 30 : minutes * 6}deg)`
+          }}
+        >
           <div className="absolute -top-2 -left-1 w-4 h-4 bg-red-600 rounded-full border-2 border-white" />
         </div>
         <div className="absolute w-3 h-3 bg-red-600 rounded-full" style={{ left: 'calc(50% - 6px)', top: 'calc(50% - 6px)' }} />
@@ -68,24 +111,53 @@ const CircularClock = ({ selectedTime, onTimeChange }) => {
 const ModernCalendar = ({ selectedDate, onDateChange }) => {
   const [currentMonth, setCurrentMonth] = useState(selectedDate || new Date());
   const [selected, setSelected] = useState(selectedDate);
+  
+  useEffect(() => {
+    if (selectedDate) {
+      setSelected(selectedDate);
+      setCurrentMonth(selectedDate);
+    }
+  }, [selectedDate]);
+
   const daysInMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).getDate();
   const firstDayOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).getDay();
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  
   const handleDateClick = (day) => {
     const newDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+    // Preserve the time from the current selected date
+    if (selected) {
+      newDate.setHours(selected.getHours());
+      newDate.setMinutes(selected.getMinutes());
+    }
     setSelected(newDate);
     onDateChange(newDate);
   };
+  
   const previousMonth = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1));
   const nextMonth = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1));
+  
   const days = [];
   for (let i = 0; i < firstDayOfMonth; i++) days.push(<div key={`empty-${i}`} className="h-10" />);
   for (let day = 1; day <= daysInMonth; day++) {
     const isSelected = selected && selected.getDate() === day && selected.getMonth() === currentMonth.getMonth();
     const isToday = new Date().getDate() === day && new Date().getMonth() === currentMonth.getMonth() && new Date().getFullYear() === currentMonth.getFullYear();
-    days.push(<button key={day} onClick={() => handleDateClick(day)} className={`h-10 rounded-full transition-all hover:bg-red-100 ${isSelected ? 'bg-red-600 text-white font-bold shadow-lg scale-110' : isToday ? 'bg-red-100 text-red-600 font-semibold' : 'text-gray-700 hover:scale-105'}`}>{day}</button>);
+    days.push(
+      <button 
+        key={day} 
+        onClick={() => handleDateClick(day)} 
+        className={`h-10 rounded-full transition-all hover:bg-red-100 ${
+          isSelected ? 'bg-red-600 text-white font-bold shadow-lg scale-110' : 
+          isToday ? 'bg-red-100 text-red-600 font-semibold' : 
+          'text-gray-700 hover:scale-105'
+        }`}
+      >
+        {day}
+      </button>
+    );
   }
+  
   return (
     <div className="bg-white rounded-xl shadow-lg p-4">
       <div className="flex justify-between items-center mb-4">
@@ -93,7 +165,9 @@ const ModernCalendar = ({ selectedDate, onDateChange }) => {
         <h3 className="text-lg font-bold text-gray-800">{monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}</h3>
         <button onClick={nextMonth} className="p-2 hover:bg-gray-100 rounded-full transition-colors">→</button>
       </div>
-      <div className="grid grid-cols-7 gap-2 mb-2">{dayNames.map(day => <div key={day} className="text-center text-xs font-semibold text-gray-500">{day}</div>)}</div>
+      <div className="grid grid-cols-7 gap-2 mb-2">
+        {dayNames.map(day => <div key={day} className="text-center text-xs font-semibold text-gray-500">{day}</div>)}
+      </div>
       <div className="grid grid-cols-7 gap-2">{days}</div>
     </div>
   );
@@ -119,6 +193,7 @@ const CountdownTimer = ({ dueDate }) => {
     }, 1000);
     return () => clearInterval(timer);
   }, [dueDate]);
+  
   const CircularProgress = ({ value, max, label, color }) => {
     const percentage = (value / max) * 100;
     const circumference = 2 * Math.PI * 45;
@@ -187,6 +262,8 @@ export default function TeacherDashboard() {
   const [teacherSubmissions, setTeacherSubmissions] = useState([]);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isCreateAssignmentOpen, setIsCreateAssignmentOpen] = useState(false);
+  const [isEditAssignmentOpen, setIsEditAssignmentOpen] = useState(false);
+  const [editingAssignment, setEditingAssignment] = useState(null);
   const [previewDocument, setPreviewDocument] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -196,7 +273,17 @@ export default function TeacherDashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [submissionsLoading, setSubmissionsLoading] = useState(false);
   const [selectedAssignmentForSubmissions, setSelectedAssignmentForSubmissions] = useState(null);
-  const [newAssignment, setNewAssignment] = useState({teacherId: '', title: '', description: '', instructions: '', class: '', dueDate: new Date(), documentFile: null});
+  const [activities, setActivities] = useState([]);
+  const [activitiesLoading, setActivitiesLoading] = useState(false);
+  const [newAssignment, setNewAssignment] = useState({
+    teacherId: '', 
+    title: '', 
+    description: '', 
+    instructions: '', 
+    class: '', 
+    dueDate: new Date(), 
+    documentFile: null
+  });
 
   // Get current user ID consistently
   const getCurrentUserId = () => {
@@ -208,6 +295,98 @@ export default function TeacherDashboard() {
     const ext = filePath.split('.').pop()?.toLowerCase();
     const typeMap = {'pdf': 'application/pdf', 'doc': 'application/msword', 'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'txt': 'text/plain', 'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png', 'gif': 'image/gif', 'mp4': 'video/mp4', 'avi': 'video/x-msvideo', 'mov': 'video/quicktime', 'wmv': 'video/x-ms-wmv'};
     return typeMap[ext || ''] || 'application/octet-stream';
+  };
+
+  // Generate activities from assignments and submissions data
+  const generateActivitiesFromData = (assignmentsData, submissionsData) => {
+    const currentUserId = getCurrentUserId();
+    const activities = [];
+
+    // Assignment activities
+    assignmentsData.forEach(assignment => {
+      // Assignment created activity
+      activities.push({
+        id: `assignment-created-${assignment.id}`,
+        userId: currentUserId,
+        type: 'assignment_created',
+        title: 'Assignment Created',
+        description: `Created assignment "${assignment.title}" for ${assignment.class}`,
+        timestamp: new Date(assignment.createdAt),
+        icon: '📝',
+        color: 'text-blue-600',
+        bgColor: 'bg-blue-50',
+        metadata: {
+          assignmentId: assignment.id,
+          assignmentTitle: assignment.title,
+          className: assignment.class
+        }
+      });
+
+      // Assignment edited activity (if edited)
+      if (assignment.isEdited) {
+        activities.push({
+          id: `assignment-edited-${assignment.id}`,
+          userId: currentUserId,
+          type: 'assignment_edited',
+          title: 'Assignment Edited',
+          description: `Updated assignment "${assignment.title}"`,
+          timestamp: new Date(assignment.updatedAt),
+          icon: '✏️',
+          color: 'text-orange-600',
+          bgColor: 'bg-orange-50',
+          metadata: {
+            assignmentId: assignment.id,
+            assignmentTitle: assignment.title
+          }
+        });
+      }
+    });
+
+    // Submission activities
+    submissionsData.forEach(submission => {
+      // Submission received activity
+      activities.push({
+        id: `submission-received-${submission.id}`,
+        userId: currentUserId,
+        type: 'submission_received',
+        title: 'Submission Received',
+        description: `${submission.student_name} submitted "${submission.assignment_title}"`,
+        timestamp: new Date(submission.submitted_at),
+        icon: '📤',
+        color: 'text-green-600',
+        bgColor: 'bg-green-50',
+        metadata: {
+          submissionId: submission.id,
+          studentName: submission.student_name,
+          assignmentTitle: submission.assignment_title,
+          studentClass: submission.student_class
+        }
+      });
+
+      // Submission graded activity (if graded)
+      if (submission.grade && submission.status === 'graded') {
+        activities.push({
+          id: `submission-graded-${submission.id}`,
+          userId: currentUserId,
+          type: 'submission_graded',
+          title: 'Submission Graded',
+          description: `Graded ${submission.student_name}'s submission with ${submission.grade}/100`,
+          timestamp: new Date(submission.updated_at || submission.submitted_at),
+          icon: '✅',
+          color: 'text-purple-600',
+          bgColor: 'bg-purple-50',
+          metadata: {
+            submissionId: submission.id,
+            studentName: submission.student_name,
+            assignmentTitle: submission.assignment_title,
+            grade: submission.grade
+          }
+        });
+      }
+    });
+
+    // Sort activities by timestamp (most recent first)
+    return activities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   };
 
   const fetchTeacherSubmissions = async (showRefreshToast = false) => {
@@ -256,6 +435,11 @@ export default function TeacherDashboard() {
             description: `Loaded ${transformedSubmissions.length} submission${transformedSubmissions.length !== 1 ? 's' : ''}`
           });
         }
+
+        // Update activities when submissions are fetched
+        const updatedActivities = generateActivitiesFromData(assignments, transformedSubmissions);
+        setActivities(updatedActivities);
+        
       } else {
         console.error('❌ API Error:', data.message);
         throw new Error(data.message || 'Failed to fetch submissions');
@@ -280,13 +464,34 @@ export default function TeacherDashboard() {
       setLoading(!showRefreshToast);
       setRefreshing(showRefreshToast);
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/assignments/teacher/${currentUserId}`, {headers: {'Authorization': `Bearer ${token}`}});
+      const response = await fetch(`http://localhost:5000/api/assignments/teacher/${currentUserId}`, {
+        headers: {'Authorization': `Bearer ${token}`}
+      });
       const data = await response.json();
       if (data.success) {
         const transformedAssignments = data.assignments.map(assignment => ({
-          id: assignment.id.toString(), teacherId: assignment.teacher_id.toString(), teacherName: user?.name || 'Teacher', title: assignment.title, description: assignment.description || '', instructions: assignment.instructions || '', subject: user?.subject || 'General', class: assignment.class_name, dueDate: new Date(assignment.due_date), createdAt: new Date(assignment.created_at), updatedAt: new Date(assignment.updated_at || assignment.created_at), documentUrl: assignment.document_path ? `http://localhost:5000${assignment.document_path}` : null, documentName: assignment.document_path ? assignment.document_path.split('/').pop() : null, documentType: assignment.document_path ? getDocumentTypeFromPath(assignment.document_path) : null, isEdited: new Date(assignment.updated_at || assignment.created_at).getTime() !== new Date(assignment.created_at).getTime()
+          id: assignment.id.toString(), 
+          teacherId: assignment.teacher_id.toString(), 
+          teacherName: user?.name || 'Teacher', 
+          title: assignment.title, 
+          description: assignment.description || '', 
+          instructions: assignment.instructions || '', 
+          subject: user?.subject || 'General', 
+          class: assignment.class_name, 
+          dueDate: new Date(assignment.due_date), 
+          createdAt: new Date(assignment.created_at), 
+          updatedAt: new Date(assignment.updated_at || assignment.created_at), 
+          documentUrl: assignment.document_path ? `http://localhost:5000${assignment.document_path}` : null, 
+          documentName: assignment.document_path ? assignment.document_path.split('/').pop() : null, 
+          documentType: assignment.document_path ? getDocumentTypeFromPath(assignment.document_path) : null, 
+          isEdited: new Date(assignment.updated_at || assignment.created_at).getTime() !== new Date(assignment.created_at).getTime()
         }));
         setAssignments(transformedAssignments);
+
+        // Update activities when assignments are fetched
+        const updatedActivities = generateActivitiesFromData(transformedAssignments, teacherSubmissions);
+        setActivities(updatedActivities);
+
         if (showRefreshToast) toast({title: "Success", description: `Loaded ${transformedAssignments.length} assignment${transformedAssignments.length !== 1 ? 's' : ''}`});
       } else throw new Error(data.message || 'Failed to fetch assignments');
     } catch (error) {
@@ -334,6 +539,14 @@ export default function TeacherDashboard() {
     }
   }, [user?.id]);
 
+  // Update activities when both assignments and submissions are available
+  useEffect(() => {
+    if (assignments.length > 0 || teacherSubmissions.length > 0) {
+      const updatedActivities = generateActivitiesFromData(assignments, teacherSubmissions);
+      setActivities(updatedActivities);
+    }
+  }, [assignments, teacherSubmissions]);
+
   const students = users.filter(u => u.role === 'student');
   const stats = {
     myAssignments: assignments.length, 
@@ -358,6 +571,32 @@ export default function TeacherDashboard() {
     return Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
   };
 
+  const addActivityForAction = (type, description, metadata = {}) => {
+    const newActivity = {
+      id: `${type}-${Date.now()}`,
+      userId: getCurrentUserId(),
+      type,
+      title: type.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '),
+      description,
+      timestamp: new Date(),
+      icon: type === 'assignment_created' ? '📝' : 
+            type === 'assignment_edited' ? '✏️' : 
+            type === 'assignment_deleted' ? '🗑️' : 
+            type === 'submission_received' ? '📤' : '✅',
+      color: type === 'assignment_created' ? 'text-blue-600' : 
+             type === 'assignment_edited' ? 'text-orange-600' : 
+             type === 'assignment_deleted' ? 'text-red-600' : 
+             type === 'submission_received' ? 'text-green-600' : 'text-purple-600',
+      bgColor: type === 'assignment_created' ? 'bg-blue-50' : 
+               type === 'assignment_edited' ? 'bg-orange-50' : 
+               type === 'assignment_deleted' ? 'bg-red-50' : 
+               type === 'submission_received' ? 'bg-green-50' : 'bg-purple-50',
+      metadata
+    };
+
+    setActivities(prev => [newActivity, ...prev].slice(0, 50)); // Keep only latest 50 activities
+  };
+
   const handleCreateAssignment = async () => {
     if (!newAssignment.title || !newAssignment.description || !newAssignment.class) {
       toast({title: "Error", description: "Please fill in all required fields", variant: "destructive"});
@@ -375,12 +614,35 @@ export default function TeacherDashboard() {
       const currentUserId = getCurrentUserId();
       formData.append('teacherId', currentUserId || '');
       
-      const response = await fetch('http://localhost:5000/api/assignments/new', {method: 'POST', headers: {'Authorization': `Bearer ${localStorage.getItem('token')}`}, body: formData});
+      const response = await fetch('http://localhost:5000/api/assignments/new', {
+        method: 'POST', 
+        headers: {'Authorization': `Bearer ${localStorage.getItem('token')}`}, 
+        body: formData
+      });
       const data = await response.json();
       if (data.success) {
         toast({title: "Success", description: `Assignment "${newAssignment.title}" created successfully!`});
+        
+        // Add activity for assignment creation
+        addActivityForAction(
+          'assignment_created',
+          `Created assignment "${newAssignment.title}" for ${newAssignment.class}`,
+          {
+            assignmentTitle: newAssignment.title,
+            className: newAssignment.class
+          }
+        );
+
         await fetchTeacherAssignments(false);
-        setNewAssignment({teacherId: '', title: '', description: '', instructions: '', class: '', dueDate: new Date(), documentFile: null});
+        setNewAssignment({
+          teacherId: '', 
+          title: '', 
+          description: '', 
+          instructions: '', 
+          class: '', 
+          dueDate: new Date(), 
+          documentFile: null
+        });
         setIsCreateAssignmentOpen(false);
       } else throw new Error(data.message || 'Failed to create assignment');
     } catch (error) {
@@ -389,15 +651,94 @@ export default function TeacherDashboard() {
     }
   };
 
-  const handleFileUpload = (event) => {
+  const handleEditAssignment = async () => {
+    if (!editingAssignment || !editingAssignment.title || !editingAssignment.description || !editingAssignment.class) {
+      toast({title: "Error", description: "Please fill in all required fields", variant: "destructive"});
+      return;
+    }
+    try {
+      const formData = new FormData();
+      if (editingAssignment.documentFile) formData.append('document', editingAssignment.documentFile);
+      formData.append('title', editingAssignment.title);
+      formData.append('description', editingAssignment.description);
+      formData.append('instructions', editingAssignment.instructions);
+      formData.append('class_name', editingAssignment.class);
+      formData.append('due_date', editingAssignment.dueDate.toISOString());
+      
+      const response = await fetch(`http://localhost:5000/api/assignments/${editingAssignment.id}`, {
+        method: 'PUT', 
+        headers: {'Authorization': `Bearer ${localStorage.getItem('token')}`}, 
+        body: formData
+      });
+      const data = await response.json();
+      if (data.success) {
+        toast({title: "Success", description: `Assignment "${editingAssignment.title}" updated successfully!`});
+        
+        // Add activity for assignment editing
+        addActivityForAction(
+          'assignment_edited',
+          `Updated assignment "${editingAssignment.title}"`,
+          {
+            assignmentId: editingAssignment.id,
+            assignmentTitle: editingAssignment.title
+          }
+        );
+
+        await fetchTeacherAssignments(false);
+        setEditingAssignment(null);
+        setIsEditAssignmentOpen(false);
+      } else throw new Error(data.message || 'Failed to update assignment');
+    } catch (error) {
+      console.error('Error updating assignment:', error);
+      toast({title: "Error", description: error instanceof Error ? error.message : "Failed to update assignment. Please try again.", variant: "destructive"});
+    }
+  };
+
+  const handleDeleteAssignment = async (assignmentId, assignmentTitle) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/assignments/${assignmentId}`, {
+        method: 'DELETE',
+        headers: {'Authorization': `Bearer ${localStorage.getItem('token')}`}
+      });
+      const data = await response.json();
+      if (data.success) {
+        toast({title: "Success", description: `Assignment "${assignmentTitle}" deleted successfully!`});
+        
+        // Add activity for assignment deletion
+        addActivityForAction(
+          'assignment_deleted',
+          `Deleted assignment "${assignmentTitle}"`,
+          {
+            assignmentId,
+            assignmentTitle
+          }
+        );
+
+        await fetchTeacherAssignments(false);
+      } else throw new Error(data.message || 'Failed to delete assignment');
+    } catch (error) {
+      console.error('Error deleting assignment:', error);
+      toast({title: "Error", description: error instanceof Error ? error.message : "Failed to delete assignment. Please try again.", variant: "destructive"});
+    }
+  };
+
+  const handleFileUpload = (event, isEdit = false) => {
     const file = event.target.files?.[0];
-    if (file) setNewAssignment({ ...newAssignment, documentFile: file });
+    if (file) {
+      if (isEdit) {
+        setEditingAssignment({ ...editingAssignment, documentFile: file });
+      } else {
+        setNewAssignment({ ...newAssignment, documentFile: file });
+      }
+    }
   };
 
   const handleDownload = async (submissionId, documentName) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/submissions/download/${submissionId}`, {headers: {'Authorization': `Bearer ${token}`}});
+      const response = await fetch(`http://localhost:5000/api/submissions/download/${submissionId}`, {
+        headers: {'Authorization': `Bearer ${token}`}
+      });
       if (!response.ok) throw new Error('Download failed');
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
@@ -430,8 +771,21 @@ export default function TeacherDashboard() {
 
   const availableClasses = [...new Set(students.map(s => s.class_name).filter(Boolean))];
 
+  const openEditDialog = (assignment) => {
+    setEditingAssignment({
+      id: assignment.id,
+      title: assignment.title,
+      description: assignment.description,
+      instructions: assignment.instructions,
+      class: assignment.class,
+      dueDate: new Date(assignment.dueDate),
+      documentFile: null
+    });
+    setIsEditAssignmentOpen(true);
+  };
+
   return (
-    <div className="space-y-6 p-6 bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
+    <div className="space-y-6 p-6 bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen" style={{ zoom: '0.8' }}>
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="border-l-4 border-l-red-600 shadow-lg hover:shadow-xl transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -542,17 +896,41 @@ export default function TeacherDashboard() {
                           </div>
                           <div>
                             <Label className="text-base font-semibold">Assignment Document (Optional)</Label>
-                            <Input type="file" onChange={handleFileUpload} accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.gif,.mp4,.avi,.mov,.wmv" className="mt-1" />
+                            <Input type="file" onChange={(e) => handleFileUpload(e, false)} accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.gif,.mp4,.avi,.mov,.wmv" className="mt-1" />
                             {newAssignment.documentFile && <p className="text-sm text-green-600 mt-2 flex items-center"><File className="h-4 w-4 mr-1" />{newAssignment.documentFile.name}</p>}
                           </div>
                         </div>
                         <div className="border-t pt-4">
                           <Label className="text-base font-semibold mb-3 block">Due Date & Time *</Label>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div><ModernCalendar selectedDate={newAssignment.dueDate} onDateChange={(date) => {const newDate = new Date(date); newDate.setHours(newAssignment.dueDate.getHours()); newDate.setMinutes(newAssignment.dueDate.getMinutes()); setNewAssignment({ ...newAssignment, dueDate: newDate });}} /></div>
-                            <div><CircularClock selectedTime={newAssignment.dueDate} onTimeChange={(date) => setNewAssignment({ ...newAssignment, dueDate: date })} /></div>
+                            <div>
+                              <ModernCalendar 
+                                selectedDate={newAssignment.dueDate} 
+                                onDateChange={(date) => {
+                                  const newDate = new Date(date); 
+                                  newDate.setHours(newAssignment.dueDate.getHours()); 
+                                  newDate.setMinutes(newAssignment.dueDate.getMinutes()); 
+                                  setNewAssignment({ ...newAssignment, dueDate: newDate });
+                                }} 
+                              />
+                            </div>
+                            <div>
+                              <CircularClock 
+                                selectedTime={newAssignment.dueDate} 
+                                onTimeChange={(date) => setNewAssignment({ ...newAssignment, dueDate: date })} 
+                              />
+                            </div>
                           </div>
-                          <p className="text-center mt-4 text-lg font-semibold text-gray-700">Selected: {newAssignment.dueDate.toLocaleString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+                          <p className="text-center mt-4 text-lg font-semibold text-gray-700">
+                            Selected: {newAssignment.dueDate.toLocaleString('en-US', { 
+                              weekday: 'long', 
+                              year: 'numeric', 
+                              month: 'long', 
+                              day: 'numeric', 
+                              hour: '2-digit', 
+                              minute: '2-digit' 
+                            })}
+                          </p>
                         </div>
                         <div className="flex justify-end space-x-3 pt-4 border-t">
                           <Button variant="outline" onClick={() => setIsCreateAssignmentOpen(false)} className="px-6">Cancel</Button>
@@ -647,12 +1025,61 @@ export default function TeacherDashboard() {
 
                             <div className="flex justify-between items-center pt-4 border-t">
                               <div className="flex items-center gap-4">
-                                <span className="text-sm text-gray-600 flex items-center"><CalendarIcon className="h-4 w-4 mr-1" />Due: {assignment.dueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                                <span className="text-sm text-gray-600 flex items-center">
+                                  <CalendarIcon className="h-4 w-4 mr-1" />
+                                  Due: {assignment.dueDate.toLocaleDateString('en-US', { 
+                                    month: 'short', 
+                                    day: 'numeric', 
+                                    year: 'numeric', 
+                                    hour: '2-digit', 
+                                    minute: '2-digit' 
+                                  })}
+                                </span>
                                 <span className="text-sm text-gray-600 flex items-center"><Upload className="h-4 w-4 mr-1" />Submissions: {submissionCount}</span>
                               </div>
                               <div className="flex gap-2">
-                                {assignment.documentUrl && <Button variant="outline" size="sm" onClick={() => setPreviewDocument(assignment)} className="hover:bg-blue-50"><Eye className="h-4 w-4 mr-1" />View Document</Button>}
-                                <Button variant="outline" size="sm" className="hover:bg-green-50"><Edit className="h-4 w-4 mr-1" />Edit</Button>
+                                {assignment.documentUrl && (
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    onClick={() => setPreviewDocument(assignment)} 
+                                    className="hover:bg-blue-50"
+                                  >
+                                    <Eye className="h-4 w-4 mr-1" />View Document
+                                  </Button>
+                                )}
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  onClick={() => openEditDialog(assignment)}
+                                  className="hover:bg-green-50"
+                                >
+                                  <Edit className="h-4 w-4 mr-1" />Edit
+                                </Button>
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button variant="outline" size="sm" className="hover:bg-red-50 text-red-600 border-red-300">
+                                      <Trash2 className="h-4 w-4 mr-1" />Delete
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        This action cannot be undone. This will permanently delete the assignment "{assignment.title}" and all associated data.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                      <AlertDialogAction 
+                                        onClick={() => handleDeleteAssignment(assignment.id, assignment.title)}
+                                        className="bg-red-600 hover:bg-red-700"
+                                      >
+                                        Delete
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
                               </div>
                             </div>
                           </CardContent>
@@ -776,9 +1203,197 @@ export default function TeacherDashboard() {
             <CardHeader><CardTitle className="flex items-center gap-2 text-xl"><CalendarIcon className="h-5 w-5 text-red-600" />Calendar</CardTitle></CardHeader>
             <CardContent><ModernCalendar selectedDate={selectedDate} onDateChange={setSelectedDate} /></CardContent>
           </Card>
-          <ActivityTimeline activities={mockActivities.filter(a => a.userId === getCurrentUserId())} title="My Activity" maxHeight="h-64" />
+          
+          {/* Enhanced Activity Timeline */}
+          <Card className="shadow-lg">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2 text-xl">
+                  <Clock className="h-5 w-5 text-red-600" />
+                  My Activity
+                </CardTitle>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => {
+                    fetchTeacherAssignments(false);
+                    fetchTeacherSubmissions(false);
+                  }}
+                  disabled={loading || submissionsLoading}
+                >
+                  <RefreshCw className={`h-4 w-4 ${(loading || submissionsLoading) ? 'animate-spin' : ''}`} />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="h-64">
+                {activities.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-32 text-gray-400">
+                    <Clock className="h-12 w-12 mb-2" />
+                    <p className="text-sm">No recent activity</p>
+                    <p className="text-xs">Your activities will appear here</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {activities.slice(0, 10).map((activity) => (
+                      <div key={activity.id} className="flex items-start gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors">
+                        <div className={`flex-shrink-0 w-10 h-10 rounded-full ${activity.bgColor} flex items-center justify-center text-lg`}>
+                          {activity.icon}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <p className={`text-sm font-medium ${activity.color}`}>
+                              {activity.title}
+                            </p>
+                            <span className="text-xs text-gray-500 flex-shrink-0">
+                              {formatTimeAgo(activity.timestamp)}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-600 mt-1">
+                            {activity.description}
+                          </p>
+                          {activity.metadata && (
+                            <div className="flex gap-1 mt-2">
+                              {activity.metadata.className && (
+                                <Badge variant="outline" className="text-xs">
+                                  {activity.metadata.className}
+                                </Badge>
+                              )}
+                              {activity.metadata.grade && (
+                                <Badge variant="outline" className="text-xs bg-green-50 text-green-700">
+                                  {activity.metadata.grade}/100
+                                </Badge>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    {activities.length > 10 && (
+                      <div className="text-center">
+                        <Button variant="ghost" size="sm" className="text-gray-500">
+                          View More Activities
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </ScrollArea>
+            </CardContent>
+          </Card>
         </div>
       </div>
+
+      {/* Edit Assignment Dialog */}
+      <Dialog open={isEditAssignmentOpen} onOpenChange={setIsEditAssignmentOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle className="text-2xl">Edit Assignment</DialogTitle>
+            <DialogDescription>Update assignment details and settings</DialogDescription>
+          </DialogHeader>
+          {editingAssignment && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2">
+                  <Label htmlFor="edit-title" className="text-base font-semibold">Assignment Title *</Label>
+                  <Input 
+                    id="edit-title" 
+                    value={editingAssignment.title} 
+                    onChange={(e) => setEditingAssignment({ ...editingAssignment, title: e.target.value })} 
+                    placeholder="Enter assignment title" 
+                    className="mt-1" 
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <Label htmlFor="edit-description" className="text-base font-semibold">Description *</Label>
+                  <Textarea 
+                    id="edit-description" 
+                    value={editingAssignment.description} 
+                    onChange={(e) => setEditingAssignment({ ...editingAssignment, description: e.target.value })} 
+                    placeholder="Describe the assignment" 
+                    rows={3} 
+                    className="mt-1" 
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <Label htmlFor="edit-instructions" className="text-base font-semibold">Instructions</Label>
+                  <Textarea 
+                    id="edit-instructions" 
+                    value={editingAssignment.instructions} 
+                    onChange={(e) => setEditingAssignment({ ...editingAssignment, instructions: e.target.value })} 
+                    placeholder="Provide detailed instructions for students" 
+                    rows={4} 
+                    className="mt-1" 
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-class" className="text-base font-semibold">Class *</Label>
+                  <Select value={editingAssignment.class} onValueChange={(value) => setEditingAssignment({ ...editingAssignment, class: value })}>
+                    <SelectTrigger className="mt-1"><SelectValue placeholder="Select class" /></SelectTrigger>
+                    <SelectContent>
+                      {availableClasses.map(className => <SelectItem key={className} value={className}>{className}</SelectItem>)}
+                      <SelectItem value="Grade 10A">Grade 10A</SelectItem>
+                      <SelectItem value="Grade 10B">Grade 10B</SelectItem>
+                      <SelectItem value="Grade 11A">Grade 11A</SelectItem>
+                      <SelectItem value="Grade 11B">Grade 11B</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-base font-semibold">Update Document (Optional)</Label>
+                  <Input 
+                    type="file" 
+                    onChange={(e) => handleFileUpload(e, true)} 
+                    accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.gif,.mp4,.avi,.mov,.wmv" 
+                    className="mt-1" 
+                  />
+                  {editingAssignment.documentFile && (
+                    <p className="text-sm text-green-600 mt-2 flex items-center">
+                      <File className="h-4 w-4 mr-1" />{editingAssignment.documentFile.name}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div className="border-t pt-4">
+                <Label className="text-base font-semibold mb-3 block">Due Date & Time *</Label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <ModernCalendar 
+                      selectedDate={editingAssignment.dueDate} 
+                      onDateChange={(date) => {
+                        const newDate = new Date(date); 
+                        newDate.setHours(editingAssignment.dueDate.getHours()); 
+                        newDate.setMinutes(editingAssignment.dueDate.getMinutes()); 
+                        setEditingAssignment({ ...editingAssignment, dueDate: newDate });
+                      }} 
+                    />
+                  </div>
+                  <div>
+                    <CircularClock 
+                      selectedTime={editingAssignment.dueDate} 
+                      onTimeChange={(date) => setEditingAssignment({ ...editingAssignment, dueDate: date })} 
+                    />
+                  </div>
+                </div>
+                <p className="text-center mt-4 text-lg font-semibold text-gray-700">
+                  Selected: {editingAssignment.dueDate.toLocaleString('en-US', { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric', 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                  })}
+                </p>
+              </div>
+              <div className="flex justify-end space-x-3 pt-4 border-t">
+                <Button variant="outline" onClick={() => setIsEditAssignmentOpen(false)} className="px-6">Cancel</Button>
+                <Button onClick={handleEditAssignment} className="bg-red-600 hover:bg-red-700 px-6">Update Assignment</Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <DocumentPreview 
         isOpen={!!previewDocument} 
