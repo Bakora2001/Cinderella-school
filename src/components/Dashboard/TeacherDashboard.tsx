@@ -14,6 +14,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { FileText, Upload, Download, Eye, Edit, Calendar as CalendarIcon, Clock, Users, MessageSquare, Plus, Search, X, File, Video, Image as ImageIcon, FileCode, RefreshCw, Trash2 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import ActivityTimeline from '../Shared/ActivityTimeline';
+import MessagingCenter from './MessagingCenter';
+import AssignmentReviewChat from './AssignmentReviewChat';
 import { useToast } from '@/hooks/use-toast';
 
 const CircularClock = ({ selectedTime, onTimeChange }) => {
@@ -275,6 +277,9 @@ export default function TeacherDashboard() {
   const [selectedAssignmentForSubmissions, setSelectedAssignmentForSubmissions] = useState(null);
   const [activities, setActivities] = useState([]);
   const [activitiesLoading, setActivitiesLoading] = useState(false);
+  const [reviewChatOpen, setReviewChatOpen] = useState(false);
+  const [selectedReviewSubmission, setSelectedReviewSubmission] = useState(null);
+  const [selectedReviewAssignment, setSelectedReviewAssignment] = useState(null);
   const [newAssignment, setNewAssignment] = useState({
     teacherId: '', 
     title: '', 
@@ -784,6 +789,12 @@ export default function TeacherDashboard() {
     setIsEditAssignmentOpen(true);
   };
 
+  const openReviewChat = (assignment, submission) => {
+    setSelectedReviewAssignment(assignment);
+    setSelectedReviewSubmission(submission);
+    setReviewChatOpen(true);
+  };
+
   return (
     <div className="space-y-6 p-6 bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen" style={{ zoom: '0.8' }}>
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -845,11 +856,18 @@ export default function TeacherDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
           <Tabs defaultValue="assignments" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 bg-white shadow-md">
+            <TabsList className="grid w-full grid-cols-4 bg-white shadow-md">
               <TabsTrigger value="assignments" className="data-[state=active]:bg-red-600 data-[state=active]:text-white">My Assignments</TabsTrigger>
               <TabsTrigger value="submissions" className="data-[state=active]:bg-red-600 data-[state=active]:text-white">Submissions</TabsTrigger>
               <TabsTrigger value="students" className="data-[state=active]:bg-red-600 data-[state=active]:text-white">Students</TabsTrigger>
+              <TabsTrigger value="messages" className="data-[state=active]:bg-red-600 data-[state=active]:text-white">Messages</TabsTrigger>
             </TabsList>
+
+            <TabsContent value="messages" className="space-y-4">
+              <div className="h-[600px]">
+                <MessagingCenter assignments={assignments} />
+              </div>
+            </TabsContent>
 
             <TabsContent value="assignments" className="space-y-4">
               <div className="flex justify-between items-center">
@@ -1006,12 +1024,22 @@ export default function TeacherDashboard() {
                                           <p className="text-xs text-gray-500">{formatTimeAgo(new Date(sub.submitted_at))}</p>
                                         </div>
                                       </div>
-                                      <Badge 
-                                        variant={sub.status === 'submitted' ? 'default' : 'secondary'}
-                                        className={`text-xs ${sub.status === 'submitted' ? 'bg-orange-600' : 'bg-green-600'}`}
-                                      >
-                                        {sub.status}
-                                      </Badge>
+                                      <div className="flex items-center gap-2">
+                                        <Badge 
+                                          variant={sub.status === 'submitted' ? 'default' : 'secondary'}
+                                          className={`text-xs ${sub.status === 'submitted' ? 'bg-orange-600' : 'bg-green-600'}`}
+                                        >
+                                          {sub.status}
+                                        </Badge>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => openReviewChat(assignment, sub)}
+                                          className="h-6 w-6 p-0 hover:bg-blue-100"
+                                        >
+                                          <MessageSquare className="h-3 w-3" />
+                                        </Button>
+                                      </div>
                                     </div>
                                   ))}
                                   {submissionCount > 3 && (
@@ -1152,7 +1180,19 @@ export default function TeacherDashboard() {
                             <div className="flex gap-2">
                               {submission.document_url && <Button variant="outline" size="sm" onClick={() => setPreviewDocument({documentUrl: submission.document_url, documentName: submission.document_path.split('/').pop(), documentType: getDocumentTypeFromPath(submission.document_path)})} className="hover:bg-blue-50"><Eye className="h-4 w-4 mr-1" />View</Button>}
                               <Button variant="outline" size="sm" onClick={() => handleDownload(submission.id.toString(), submission.document_path.split('/').pop())} className="hover:bg-green-50"><Download className="h-4 w-4 mr-1" />Download</Button>
-                              <Button variant="outline" size="sm" className="hover:bg-purple-50"><MessageSquare className="h-4 w-4 mr-1" />Review</Button>
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => {
+                                  const assignment = assignments.find(a => a.id === submission.assignment_id.toString());
+                                  if (assignment) {
+                                    openReviewChat(assignment, submission);
+                                  }
+                                }}
+                                className="hover:bg-purple-50"
+                              >
+                                <MessageSquare className="h-4 w-4 mr-1" />Review
+                              </Button>
                             </div>
                           </div>
                         </CardContent>
@@ -1546,7 +1586,12 @@ export default function TeacherDashboard() {
                             >
                               <Download className="h-4 w-4 mr-1" />Download
                             </Button>
-                            <Button variant="outline" size="sm" className="hover:bg-purple-50">
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => openReviewChat(selectedAssignmentForSubmissions, submission)}
+                              className="hover:bg-purple-50"
+                            >
                               <MessageSquare className="h-4 w-4 mr-1" />Review
                             </Button>
                           </div>
@@ -1560,6 +1605,13 @@ export default function TeacherDashboard() {
           )}
         </DialogContent>
       </Dialog>
+
+      <AssignmentReviewChat
+        isOpen={reviewChatOpen}
+        onClose={() => setReviewChatOpen(false)}
+        assignment={selectedReviewAssignment}
+        submission={selectedReviewSubmission}
+      />
     </div>
   );
 }

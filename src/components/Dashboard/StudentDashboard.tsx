@@ -39,6 +39,7 @@ import NotificationPanel from '../Shared/NotificationPanel';
 import { mockActivities, mockNotifications, mockSubmissions } from '../../data/mockData';
 import { useToast } from '@/hooks/use-toast';
 import AITutorChat from './AITutorChat';
+import StudentMessagingCenter from './StudentMessagingCenter';
 
 // Modern Calendar Component
 const ModernCalendar = ({ selectedDate, onDateChange }) => {
@@ -330,11 +331,11 @@ export default function StudentDashboard() {
         const transformedAssignments = data.assignments.map(assignment => ({
           id: assignment.id.toString(),
           teacherId: assignment.teacher_id.toString(),
-          teacherName: 'Teacher', // You can join with users table to get actual name
+          teacherName: assignment.teacher_name || 'Teacher',
           title: assignment.title,
           description: assignment.description || '',
           instructions: assignment.instructions || '',
-          subject: 'General', // You can add subject field to DB if needed
+          subject: 'General',
           class: assignment.class_name,
           dueDate: new Date(assignment.due_date),
           createdAt: new Date(assignment.created_at),
@@ -554,10 +555,16 @@ export default function StudentDashboard() {
     u.id !== user?.id
   );
 
+  // Prepare assignments data for messaging center
+  const assignmentsForMessaging = assignments.map(assignment => ({
+    id: assignment.id,
+    title: assignment.title,
+    teacherId: assignment.teacherId,
+    teacherName: assignment.teacherName
+  }));
+
   return (
     <div className="space-y-6 p-6 bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
-      {/* API Status Banner */}
-      
       {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="border-l-4 border-l-blue-600 shadow-lg hover:shadow-xl transition-shadow">
@@ -656,12 +663,19 @@ export default function StudentDashboard() {
         {/* Main Content */}
         <div className="lg:col-span-2">
           <Tabs defaultValue="assignments" className="w-full">
-            <TabsList className="grid w-full grid-cols-4 bg-white shadow-md">
+            <TabsList className="grid w-full grid-cols-5 bg-white shadow-md">
               <TabsTrigger value="assignments" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">Assignments</TabsTrigger>
               <TabsTrigger value="submissions" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">My Submissions</TabsTrigger>
+              <TabsTrigger value="messages" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">Messages</TabsTrigger>
               <TabsTrigger value="classmates" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">Classmates</TabsTrigger>
               <TabsTrigger value="help" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">Help</TabsTrigger>
             </TabsList>
+
+            <TabsContent value="messages" className="space-y-4">
+              <div className="h-[600px]">
+                <StudentMessagingCenter assignments={assignmentsForMessaging} />
+              </div>
+            </TabsContent>
 
             <TabsContent value="assignments" className="space-y-4">
               <div className="flex justify-between items-center">
@@ -924,7 +938,7 @@ export default function StudentDashboard() {
                         <Badge variant={classmate.isOnline ? "default" : "secondary"} className={`${classmate.isOnline ? "bg-green-600" : ""} px-3 py-1`}>
                           {classmate.isOnline ? "Online" : "Offline"}
                         </Badge>
-                        <Button variant="ghost" size="sm" className="hover:bg-purple-50">
+                        <Button variant="ghost" size="sm" className="hover:bg-purple-50" disabled>
                           <MessageSquare className="h-4 w-4" />
                         </Button>
                       </div>
@@ -974,19 +988,19 @@ export default function StudentDashboard() {
                   </div>
 
                   <div className="p-4 bg-orange-50 rounded-lg">
-                    <h4 className="font-semibold text-base mb-2 text-orange-800">👥 Classmates</h4>
+                    <h4 className="font-semibold text-base mb-2 text-orange-800">💬 Messaging</h4>
                     <ul className="text-sm text-orange-700 space-y-1 ml-4">
-                      <li>• View who's online in your class</li>
-                      <li>• See total classmates count</li>
-                      <li>• Connect with online classmates for study groups</li>
-                      <li>• Check class activity and engagement</li>
+                      <li>• Use the "Messages" tab to communicate with teachers and admin</li>
+                      <li>• Ask questions about specific assignments</li>
+                      <li>• Get help and clarification on coursework</li>
+                      <li>• Check online status of teachers for immediate help</li>
                     </ul>
                   </div>
 
                   <Alert className="border-blue-200 bg-blue-50">
                     <HelpCircle className="h-4 w-4 text-blue-600" />
                     <AlertDescription className="text-blue-800">
-                      <strong>Need Help?</strong> Contact your teacher or administrator if you have technical issues or questions about assignments.
+                      <strong>Need Help?</strong> Use the Messages tab to contact your teachers or administrators if you have technical issues or questions about assignments.
                     </AlertDescription>
                   </Alert>
                 </CardContent>

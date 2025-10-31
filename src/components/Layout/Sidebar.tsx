@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
 import {
   Home,
   FileText,
@@ -18,9 +19,11 @@ import {
   Activity,
   HelpCircle,
   Menu,
-  X
+  X,
+  MessageSquare
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useWebSocket } from '../../contexts/WebSocketContext';
 
 interface SidebarProps {
   activeTab: string;
@@ -31,6 +34,10 @@ interface SidebarProps {
 
 export default function Sidebar({ activeTab, onTabChange, isOpen, onToggle }: SidebarProps) {
   const { user } = useAuth();
+  const { conversations } = useWebSocket();
+
+  // Calculate total unread messages
+  const totalUnreadMessages = conversations.reduce((total, conv) => total + (conv.unreadCount || 0), 0);
 
   const getMenuItems = () => {
     switch (user?.role) {
@@ -39,6 +46,7 @@ export default function Sidebar({ activeTab, onTabChange, isOpen, onToggle }: Si
           { id: 'dashboard', label: 'Dashboard', icon: Home },
           { id: 'users', label: 'User Management', icon: Users },
           { id: 'assignments', label: 'All Assignments', icon: FileText },
+          { id: 'messages', label: 'Messages', icon: MessageSquare, badge: totalUnreadMessages },
           { id: 'analytics', label: 'Analytics', icon: BarChart3 },
           { id: 'activity', label: 'Activity Log', icon: Activity },
           { id: 'settings', label: 'Settings', icon: Settings },
@@ -50,6 +58,7 @@ export default function Sidebar({ activeTab, onTabChange, isOpen, onToggle }: Si
           { id: 'create', label: 'Create Assignment', icon: Upload },
           { id: 'submissions', label: 'Submissions', icon: BookOpen },
           { id: 'students', label: 'My Students', icon: Users },
+          { id: 'messages', label: 'Messages', icon: MessageSquare, badge: totalUnreadMessages },
           { id: 'calendar', label: 'Calendar', icon: Calendar },
           { id: 'activity', label: 'Activity', icon: Activity },
         ];
@@ -58,6 +67,7 @@ export default function Sidebar({ activeTab, onTabChange, isOpen, onToggle }: Si
           { id: 'dashboard', label: 'Dashboard', icon: Home },
           { id: 'assignments', label: 'Assignments', icon: FileText },
           { id: 'submissions', label: 'My Submissions', icon: Upload },
+          { id: 'messages', label: 'Messages', icon: MessageSquare, badge: totalUnreadMessages },
           { id: 'calendar', label: 'Calendar', icon: Calendar },
           { id: 'activity', label: 'Activity', icon: Activity },
           { id: 'help', label: 'Help & Instructions', icon: HelpCircle },
@@ -149,7 +159,7 @@ export default function Sidebar({ activeTab, onTabChange, isOpen, onToggle }: Si
                   key={item.id}
                   variant={activeTab === item.id ? "secondary" : "ghost"}
                   className={cn(
-                    "w-full justify-start gap-2 text-left h-9 sm:h-10 px-2 sm:px-3",
+                    "w-full justify-start gap-2 text-left h-9 sm:h-10 px-2 sm:px-3 relative",
                     activeTab === item.id
                       ? "bg-red-600 text-white hover:bg-red-700"
                       : "text-gray-300 hover:text-white hover:bg-gray-800"
@@ -163,6 +173,14 @@ export default function Sidebar({ activeTab, onTabChange, isOpen, onToggle }: Si
                 >
                   <Icon className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
                   <span className="text-xs sm:text-sm truncate">{item.label}</span>
+                  {item.badge && item.badge > 0 && (
+                    <Badge 
+                      className="ml-auto bg-red-500 text-white text-xs px-1.5 py-0.5 min-w-[1.25rem] h-5 flex items-center justify-center"
+                      variant="secondary"
+                    >
+                      {item.badge > 99 ? '99+' : item.badge}
+                    </Badge>
+                  )}
                 </Button>
               );
             })}
