@@ -75,7 +75,7 @@ export default function MessagingCenter({ assignments = [] }: MessagingCenterPro
     
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/chat/available-users/${user.id}/${user.role}`, {
+      const response = await fetch(`http://localhost:5000/api/websocketschat/available-users/${user.id}/${user.role}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       

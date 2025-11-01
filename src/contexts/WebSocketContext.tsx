@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
+import io from 'socket.io-client';
+import type { Socket } from 'socket.io-client';
 import { useAuth } from './AuthContext';
 import { User } from '../types';
 
@@ -51,14 +53,14 @@ export const useWebSocket = () => {
 export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
   
-  const [socket, setSocket] = useState<any | null>(null);
+  const [socket, setSocket] = useState<any>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const reconnectTimeoutRef = useRef<number | null>(null);
   const reconnectAttemptsRef = useRef<number>(0);
-  const socketRef = useRef<any>(null);
+  const socketRef = useRef<any | null>(null);
 
   const connectWebSocket = () => {
     if (!user?.id) return;
@@ -67,7 +69,7 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       console.log('🔌 Connecting to Socket.IO...');
       
       // Use Socket.IO client
-      const io = require('socket.io-client');
+      // const io = require('socket.io-client');
       const ws = io('http://localhost:5000', {
         transports: ['websocket', 'polling'],
         reconnection: true,
