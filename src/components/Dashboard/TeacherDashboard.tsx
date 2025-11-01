@@ -795,6 +795,14 @@ export default function TeacherDashboard() {
     setReviewChatOpen(true);
   };
 
+  // Prepare assignments data for messaging center
+  const assignmentsForMessaging = assignments.map(assignment => ({
+    id: assignment.id,
+    title: assignment.title,
+    teacherId: assignment.teacherId,
+    teacherName: assignment.teacherName
+  }));
+
   return (
     <div className="space-y-6 p-6 bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen" style={{ zoom: '0.8' }}>
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -865,7 +873,7 @@ export default function TeacherDashboard() {
 
             <TabsContent value="messages" className="space-y-4">
               <div className="h-[600px]">
-                <MessagingCenter assignments={assignments} />
+                <MessagingCenter assignments={assignmentsForMessaging} />
               </div>
             </TabsContent>
 

@@ -11,8 +11,6 @@
             └── 📁Dashboard
                 ├── AdminDashboard.tsx
                 ├── AITutorChat.tsx
-                ├── AssignmentReviewChat.tsx
-                ├── MessagingCenter.tsx
                 ├── StudentDashboard.tsx
                 ├── SubmissionReport.tsx
                 ├── TeacherDashboard.tsx
@@ -28,7 +26,6 @@
                 ├── ActivityTimeline.tsx
                 ├── CircularClock.tsx
                 ├── DocumentPreview.tsx
-                ├── MessageNotification.tsx
                 ├── ModernCalendar.tsx
                 ├── NotificationPanel.tsx
                 ├── TimeLeftIndicator.tsx
@@ -85,7 +82,6 @@
         └── 📁contexts
             ├── AuthContext.tsx
             ├── ThemeContext.tsx
-            ├── WebSocketContext.tsx
         └── 📁data
             ├── mockData.ts
         └── 📁hooks
