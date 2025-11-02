@@ -7,11 +7,20 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Send, Plus, Search, MessageSquare, User, Check, CheckCheck, Circle } from 'lucide-react';
+import { Send, Plus, Search, MessageSquare, User, Check, CheckCheck, Circle, Wifi, WifiOff } from 'lucide-react';
 import { useWebSocket } from '../../contexts/WebSocketContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+
+interface StudentMessagingCenterProps {
+  assignments?: Array<{
+    id: string;
+    title: string;
+    teacherId: string;
+    teacherName: string;
+  }>;
+}
 
 interface AvailableUser {
   id: string;
@@ -21,17 +30,6 @@ interface AvailableUser {
   class_name?: string;
 }
 
-interface Assignment {
-  id: string;
-  title: string;
-  teacherId: string;
-  teacherName: string;
-}
-
-interface StudentMessagingCenterProps {
-  assignments?: Assignment[];
-}
-
 export default function StudentMessagingCenter({ assignments = [] }: StudentMessagingCenterProps) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -39,13 +37,13 @@ export default function StudentMessagingCenter({ assignments = [] }: StudentMess
     isConnected,
     onlineUsers,
     messages,
+    conversations,
     typingUsers,
     sendMessage,
     getChatHistory,
     markAsRead,
     startTyping,
     stopTyping,
-    conversations,
     getUnreadCount,
     isUserOnline,
   } = useWebSocket();
@@ -59,6 +57,7 @@ export default function StudentMessagingCenter({ assignments = [] }: StudentMess
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Fetch available users (teachers and admins only for students)
   useEffect(() => {
     const fetchAvailableUsers = async () => {
       if (!user?.id) return;
@@ -68,15 +67,14 @@ export default function StudentMessagingCenter({ assignments = [] }: StudentMess
         const data = await response.json();
 
         if (data.success) {
-          const filteredUsers = data.users
-            .filter((u: any) => u.role === 'teacher' || u.role === 'admin')
-            .map((u: any) => ({
-              id: u.id.toString(),
-              username: `${u.firstname || ''} ${u.sirname || ''}`.trim() || u.email.split('@')[0],
-              email: u.email,
-              role: u.role,
-              class_name: u.class,
-            }));
+          // Students should only see teachers and admins
+          const filteredUsers = data.users.filter(
+            (u: any) => (u.role === 'teacher' || u.role === 'admin') && u.id !== user.id
+          ).map((u: any) => ({
+            ...u,
+            username: `${u.firstname || ''} ${u.sirname || ''}`.trim() || u.email.split('@')[0],
+          }));
+          
           setAvailableUsers(filteredUsers);
         }
       } catch (error) {
@@ -90,23 +88,31 @@ export default function StudentMessagingCenter({ assignments = [] }: StudentMess
     };
 
     fetchAvailableUsers();
-  }, [user?.id, toast]);
 
+  }, [user?.id, user?.role, toast,]);
+
+  // Scroll to bottom when new messages arrive
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    scrollToBottom();
   }, [messages]);
 
+  // Mark messages as read when conversation is selected
   useEffect(() => {
     if (selectedUser) {
       markAsRead(selectedUser.id);
     }
   }, [selectedUser, markAsRead]);
 
+  // Focus input when chat is selected
   useEffect(() => {
     if (selectedUser && inputRef.current) {
       inputRef.current.focus();
     }
   }, [selectedUser]);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   const handleUserSelect = (selectedUserData: AvailableUser) => {
     setSelectedUser(selectedUserData);
@@ -167,7 +173,8 @@ export default function StudentMessagingCenter({ assignments = [] }: StudentMess
 
     if (diffInMinutes < 1) return 'Just now';
     if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
-    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`;
+    if (diffInMinutes < 1440)
+      return `${Math.floor(diffInMinutes / 60)}h ago`;
     return messageDate.toLocaleDateString();
   };
 
@@ -177,6 +184,7 @@ export default function StudentMessagingCenter({ assignments = [] }: StudentMess
     u.role.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Group users by role
   const teachersAndAdmins = filteredAvailableUsers.reduce((acc, user) => {
     const key = user.role === 'admin' ? 'Administrators' : 'Teachers';
     if (!acc[key]) acc[key] = [];
@@ -187,18 +195,21 @@ export default function StudentMessagingCenter({ assignments = [] }: StudentMess
   const conversationsList = conversations.map((conv) => ({
     ...conv,
     isOnline: isUserOnline(conv.userId),
+    unreadCount: getUnreadCount(conv.userId),
   }));
 
+  // Get messages for selected chat
   const currentChatMessages = selectedUser
     ? messages.filter(
         (msg) =>
           (msg.senderId === user?.id.toString() &&
-            msg.receiverId === selectedUser.id) ||
-          (msg.senderId === selectedUser.id &&
+            msg.receiverId === selectedUser.id.toString()) ||
+          (msg.senderId === selectedUser.id.toString() &&
             msg.receiverId === user?.id.toString())
       )
     : [];
 
+  // Message status icon
   const MessageStatusIcon = ({ message }: { message: any }) => {
     if (message.senderId !== user?.id.toString()) return null;
 
@@ -211,13 +222,26 @@ export default function StudentMessagingCenter({ assignments = [] }: StudentMess
     return <Check className="h-3 w-3 text-gray-400" />;
   };
 
+  // Student theme colors (Blue and Teal)
+  const studentTheme = {
+    primary: 'bg-blue-600',
+    primaryHover: 'hover:bg-blue-700',
+    primaryText: 'text-blue-600',
+    primaryBg: 'bg-blue-50',
+    primaryBorder: 'border-blue-200',
+    accent: 'bg-blue-100',
+    online: 'bg-blue-600',
+    messageOwn: 'bg-blue-600',
+    messageOther: 'bg-white border border-blue-100',
+  };
+
   return (
     <div className="flex h-[600px] gap-4">
       {/* Conversations List */}
       <Card className="w-1/3 flex flex-col">
-        <CardHeader className="pb-3">
+        <CardHeader className="pb-3 bg-gradient-to-r from-blue-50 to-teal-50">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-lg flex items-center gap-2">
+            <CardTitle className="text-lg text-blue-800 flex items-center gap-2">
               <MessageSquare className="h-5 w-5 text-blue-600" />
               Messages
             </CardTitle>
@@ -230,7 +254,7 @@ export default function StudentMessagingCenter({ assignments = [] }: StudentMess
               </DialogTrigger>
               <DialogContent className="max-w-2xl">
                 <DialogHeader>
-                  <DialogTitle>Start New Conversation</DialogTitle>
+                  <DialogTitle className="text-blue-800">Start New Conversation</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4">
                   <div className="relative">
@@ -239,7 +263,7 @@ export default function StudentMessagingCenter({ assignments = [] }: StudentMess
                       placeholder="Search teachers and admins..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10"
+                      className="pl-10 border-blue-200 focus:border-blue-400"
                     />
                   </div>
                   
@@ -252,7 +276,7 @@ export default function StudentMessagingCenter({ assignments = [] }: StudentMess
                     ) : (
                       Object.entries(teachersAndAdmins).map(([groupName, groupUsers]) => (
                         <div key={groupName} className="mb-4">
-                          <h3 className="text-sm font-semibold text-gray-600 mb-2 px-3">
+                          <h3 className="text-sm font-semibold text-blue-700 mb-2 px-3">
                             {groupName}
                           </h3>
                           {groupUsers.map((availableUser) => {
@@ -261,13 +285,13 @@ export default function StudentMessagingCenter({ assignments = [] }: StudentMess
                               <div
                                 key={availableUser.id}
                                 onClick={() => handleUserSelect(availableUser)}
-                                className="flex items-center gap-3 p-3 hover:bg-blue-100 rounded-lg cursor-pointer mb-2"
+                                className="flex items-center gap-3 p-3 hover:bg-blue-50 rounded-lg cursor-pointer mb-2"
                               >
                                 <div className="relative">
                                   <Avatar>
                                     <AvatarFallback
                                       className={`${
-                                        online ? 'bg-green-600' : 'bg-gray-600'
+                                        online ? 'bg-blue-600' : 'bg-gray-600'
                                       } text-white`}
                                     >
                                       {getInitials(availableUser.username)}
@@ -278,7 +302,7 @@ export default function StudentMessagingCenter({ assignments = [] }: StudentMess
                                   )}
                                 </div>
                                 <div className="flex-1">
-                                  <p className="font-medium text-sm">
+                                  <p className="font-medium text-sm text-blue-800">
                                     {availableUser.username}
                                   </p>
                                   <p className="text-xs text-gray-600">
@@ -314,11 +338,11 @@ export default function StudentMessagingCenter({ assignments = [] }: StudentMess
             </Dialog>
           </div>
           <div className="flex items-center gap-2 mt-2">
-            <div
-              className={`w-2 h-2 rounded-full ${
-                isConnected ? 'bg-green-500' : 'bg-red-500'
-              }`}
-            ></div>
+            {isConnected ? (
+              <Wifi className="h-4 w-4 text-green-500" />
+            ) : (
+              <WifiOff className="h-4 w-4 text-red-500" />
+            )}
             <span className="text-xs text-gray-600">
               {isConnected ? 'Connected' : 'Disconnected'}
             </span>
@@ -335,69 +359,71 @@ export default function StudentMessagingCenter({ assignments = [] }: StudentMess
                 </p>
               </div>
             ) : (
-              conversationsList.map((conv) => {
-                const unread = getUnreadCount(conv.userId);
-                return (
-                  <div
-                    key={conv.userId}
-                    onClick={() => {
-                      const user = availableUsers.find(u => u.id === conv.userId);
-                      if (user) handleUserSelect(user);
-                    }}
-                    className={cn(
-                      'flex items-center gap-3 p-3 rounded-lg cursor-pointer mb-2 transition-colors',
-                      selectedUser?.id === conv.userId
-                        ? 'bg-blue-50 border border-blue-200'
-                        : 'hover:bg-gray-100'
+              conversationsList.map((conv) => (
+                <div
+                  key={conv.userId}
+                  onClick={() => {
+                    const userToSelect = availableUsers.find(u => u.id === conv.userId) || {
+                      id: conv.userId,
+                      username: conv.username,
+                      email: '',
+                      role: conv.role
+                    };
+                    handleUserSelect(userToSelect);
+                  }}
+                  className={cn(
+                    'flex items-center gap-3 p-3 rounded-lg cursor-pointer mb-2 transition-colors',
+                    selectedUser?.id === conv.userId
+                      ? 'bg-blue-100 border border-blue-200'
+                      : 'hover:bg-blue-50'
+                  )}
+                >
+                  <div className="relative">
+                    <Avatar>
+                      <AvatarFallback
+                        className={`${
+                          conv.isOnline ? 'bg-blue-600' : 'bg-gray-600'
+                        } text-white`}
+                      >
+                        {getInitials(conv.username)}
+                      </AvatarFallback>
+                    </Avatar>
+                    {conv.isOnline && (
+                      <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
                     )}
-                  >
-                    <div className="relative">
-                      <Avatar>
-                        <AvatarFallback
-                          className={`${
-                            conv.isOnline ? 'bg-green-600' : 'bg-gray-600'
-                          } text-white`}
-                        >
-                          {getInitials(conv.username)}
-                        </AvatarFallback>
-                      </Avatar>
-                      {conv.isOnline && (
-                        <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <p className="font-medium text-sm truncate text-blue-800">
+                        {conv.username}
+                      </p>
+                      <span className="text-xs text-gray-500 flex-shrink-0 ml-2">
+                        {formatTime(conv.timestamp)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between mt-1">
+                      <p className="text-xs text-gray-600 truncate flex-1">
+                        {conv.lastMessage}
+                      </p>
+                      {conv.unreadCount > 0 && (
+                        <Badge className="bg-blue-600 text-white text-xs px-1.5 py-0.5 min-w-[1.25rem] h-5 flex items-center justify-center ml-2">
+                          {conv.unreadCount > 99 ? '99+' : conv.unreadCount}
+                        </Badge>
                       )}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <p className="font-medium text-sm truncate">
-                          {conv.username}
-                        </p>
-                        <span className="text-xs text-gray-500 flex-shrink-0 ml-2">
-                          {formatTime(conv.timestamp)}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between mt-1">
-                        <p className="text-xs text-gray-600 truncate flex-1">
-                          {conv.lastMessage}
-                        </p>
-                        {unread > 0 && (
-                          <Badge className="bg-blue-600 text-white text-xs px-1.5 py-0.5 min-w-[1.25rem] h-5 flex items-center justify-center ml-2">
-                            {unread > 99 ? '99+' : unread}
-                          </Badge>
-                        )}
-                      </div>
-                      <Badge
-                        variant="outline"
-                        className={`text-xs capitalize mt-1 ${
-                          conv.role === 'admin'
-                            ? 'bg-purple-50 text-purple-700 border-purple-300'
-                            : 'bg-blue-50 text-blue-700 border-blue-300'
-                        }`}
-                      >
-                        {conv.role}
-                      </Badge>
-                    </div>
+                    <Badge
+                      variant="outline"
+                      className={`text-xs capitalize mt-1 ${
+                        conv.role === 'admin'
+                          ? 'bg-purple-50 text-purple-700 border-purple-300'
+                          : 'bg-blue-50 text-blue-700 border-blue-300'
+                      }`}
+                    >
+                      {conv.role}
+                    </Badge>
                   </div>
-                );
-              })
+                </div>
+              ))
             )}
           </ScrollArea>
         </CardContent>
@@ -407,26 +433,21 @@ export default function StudentMessagingCenter({ assignments = [] }: StudentMess
       <Card className="flex-1 flex flex-col">
         {selectedUser ? (
           <>
-            <CardHeader className="pb-3 border-b">
+            <CardHeader className="pb-3 border-b border-blue-200 bg-gradient-to-r from-blue-50 to-teal-50">
               <div className="flex items-center gap-3">
-                <div className="relative">
-                  <Avatar>
-                    <AvatarFallback
-                      className={`${
-                        selectedUser.role === 'admin'
-                          ? 'bg-purple-600'
-                          : 'bg-blue-600'
-                      } text-white`}
-                    >
-                      {getInitials(selectedUser.username)}
-                    </AvatarFallback>
-                  </Avatar>
-                  {isUserOnline(selectedUser.id) && (
-                    <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
-                  )}
-                </div>
+                <Avatar>
+                  <AvatarFallback
+                    className={`${
+                      selectedUser.role === 'admin'
+                        ? 'bg-purple-600'
+                        : 'bg-blue-600'
+                    } text-white`}
+                  >
+                    {getInitials(selectedUser.username)}
+                  </AvatarFallback>
+                </Avatar>
                 <div className="flex-1">
-                  <h3 className="font-semibold">{selectedUser.username}</h3>
+                  <h3 className="font-semibold text-blue-800">{selectedUser.username}</h3>
                   <div className="flex items-center gap-2">
                     <Badge
                       variant="outline"
@@ -440,7 +461,7 @@ export default function StudentMessagingCenter({ assignments = [] }: StudentMess
                     </Badge>
                     {isUserOnline(selectedUser.id) && (
                       <span className="text-xs text-green-600 flex items-center gap-1">
-                        <Circle className="h-2 w-2 fill-current" />
+                        <Circle className="w-2 h-2 bg-green-500 rounded-full" />
                         Online
                       </span>
                     )}
@@ -448,15 +469,19 @@ export default function StudentMessagingCenter({ assignments = [] }: StudentMess
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="flex-1 flex flex-col p-4">
-              <ScrollArea className="flex-1 pr-4 mb-4">
+            
+            {/* Messages Area - FIXED HEIGHT AND SCROLLABLE */}
+            <div className="flex-1 flex flex-col min-h-0">
+              <ScrollArea className="flex-1 p-4 bg-gradient-to-b from-blue-25 to-teal-25">
                 {currentChatMessages.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
-                    <MessageSquare className="h-12 w-12 mx-auto mb-2 text-gray-300" />
-                    <p className="text-sm">No messages yet</p>
-                    <p className="text-xs mt-1">
-                      Send a message to start the conversation
-                    </p>
+                  <div className="flex items-center justify-center h-full text-gray-400">
+                    <div className="text-center">
+                      <MessageSquare className="h-16 w-16 mx-auto mb-2" />
+                      <p className="text-lg font-medium">No messages yet</p>
+                      <p className="text-sm mt-1">
+                        Send a message to start the conversation
+                      </p>
+                    </div>
                   </div>
                 ) : (
                   <div className="space-y-4">
@@ -465,15 +490,13 @@ export default function StudentMessagingCenter({ assignments = [] }: StudentMess
                       const showDate =
                         index === 0 ||
                         new Date(msg.timestamp).toDateString() !==
-                          new Date(
-                            currentChatMessages[index - 1].timestamp
-                          ).toDateString();
+                          new Date(currentChatMessages[index - 1].timestamp).toDateString();
 
                       return (
                         <div key={msg.id}>
                           {showDate && (
                             <div className="flex items-center justify-center my-4">
-                              <div className="bg-gray-200 text-gray-600 text-xs px-3 py-1 rounded-full">
+                              <div className="bg-blue-200 text-blue-700 text-xs px-3 py-1 rounded-full">
                                 {new Date(msg.timestamp).toLocaleDateString(
                                   'en-US',
                                   { weekday: 'long', month: 'short', day: 'numeric' }
@@ -492,7 +515,7 @@ export default function StudentMessagingCenter({ assignments = [] }: StudentMess
                                 'max-w-[70%] rounded-2xl px-4 py-2 shadow-sm',
                                 isMe
                                   ? 'bg-blue-600 text-white rounded-br-sm'
-                                  : 'bg-white text-gray-800 rounded-bl-sm border'
+                                  : 'bg-white text-gray-800 rounded-bl-sm border border-blue-100'
                               )}
                             >
                               <p className="text-sm break-words">{msg.message}</p>
@@ -517,20 +540,24 @@ export default function StudentMessagingCenter({ assignments = [] }: StudentMess
                         </div>
                       );
                     })}
+                    
+                    {/* Typing Indicator */}
                     {typingUsers.has(selectedUser.id) && (
                       <div className="flex justify-start">
-                        <div className="bg-white rounded-2xl px-4 py-2 shadow-sm border">
+                        <div className="bg-white rounded-2xl px-4 py-2 shadow-sm border border-blue-100">
                           <div className="flex gap-1 items-center">
-                            <span className="text-xs text-gray-500 mr-2">typing</span>
-                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                            <span className="text-xs text-blue-600 mr-2">
+                              {selectedUser.username} is typing
+                            </span>
+                            <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" />
                             <div
-                              className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                              className="w-2 h-2 bg-blue-400 rounded-full animate-bounce"
+                              style={{ animationDelay: '0.1s' }}
+                            />
+                            <div
+                              className="w-2 h-2 bg-blue-400 rounded-full animate-bounce"
                               style={{ animationDelay: '0.2s' }}
-                            ></div>
-                            <div
-                              className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                              style={{ animationDelay: '0.4s' }}
-                            ></div>
+                            />
                           </div>
                         </div>
                       </div>
@@ -539,28 +566,32 @@ export default function StudentMessagingCenter({ assignments = [] }: StudentMess
                   </div>
                 )}
               </ScrollArea>
-              <div className="flex gap-2">
-                <Input
-                  ref={inputRef}
-                  value={messageInput}
-                  onChange={handleTyping}
-                  onKeyPress={handleKeyPress}
-                  placeholder="Type a message..."
-                  disabled={!isConnected}
-                  className="flex-1"
-                />
-                <Button
-                  onClick={handleSendMessage}
-                  disabled={!messageInput.trim() || !isConnected}
-                  className="bg-blue-600 hover:bg-blue-700"
-                >
-                  <Send className="h-4 w-4" />
-                </Button>
+
+              {/* Message Input */}
+              <div className="p-4 border-t border-blue-200 bg-white">
+                <div className="flex gap-2">
+                  <Input
+                    ref={inputRef}
+                    value={messageInput}
+                    onChange={handleTyping}
+                    onKeyPress={handleKeyPress}
+                    placeholder={`Message ${selectedUser.username}...`}
+                    disabled={!isConnected}
+                    className="flex-1 border-blue-200 focus:border-blue-400"
+                  />
+                  <Button
+                    onClick={handleSendMessage}
+                    disabled={!messageInput.trim() || !isConnected}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    <Send className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
-            </CardContent>
+            </div>
           </>
         ) : (
-          <CardContent className="flex-1 flex items-center justify-center">
+          <CardContent className="flex-1 flex items-center justify-center bg-gradient-to-b from-blue-25 to-teal-25">
             <div className="text-center text-gray-500">
               <MessageSquare className="h-16 w-16 mx-auto mb-4 text-gray-300" />
               <p className="text-lg font-medium">No conversation selected</p>

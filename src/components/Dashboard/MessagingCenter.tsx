@@ -14,6 +14,8 @@ import {
   CheckCheck,
   Circle,
   User,
+  Wifi,
+  WifiOff,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWebSocket } from '../../contexts/WebSocketContext';
@@ -92,7 +94,7 @@ export default function MessagingCenter({ assignments = [] }: MessagingCenterPro
     };
 
     fetchUsers();
-  }, [user?.role]);
+  }, [user?.role,]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -229,24 +231,36 @@ export default function MessagingCenter({ assignments = [] }: MessagingCenterPro
     return <Check className="h-3 w-3 text-gray-400" />;
   };
 
+  // Teacher theme colors (Red and White)
+  const teacherTheme = {
+    primary: 'bg-red-600',
+    primaryHover: 'hover:bg-red-700',
+    primaryText: 'text-red-600',
+    primaryBg: 'bg-red-50',
+    primaryBorder: 'border-red-200',
+    accent: 'bg-red-100',
+    online: 'bg-red-600',
+    messageOwn: 'bg-red-600',
+    messageOther: 'bg-white border border-red-100',
+  };
+
   return (
-    <div className="flex h-full border rounded-lg overflow-hidden bg-white shadow-lg">
+    <div className="flex h-[600px] border rounded-lg overflow-hidden bg-white shadow-lg">
       {/* Conversations List */}
-      <div className="w-80 border-r flex flex-col bg-gray-50">
+      <div className="w-80 border-r flex flex-col bg-red-50">
         {/* Header */}
-        <div className="p-4 border-b bg-white">
+        <div className="p-4 border-b bg-white border-red-200">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-lg font-semibold flex items-center gap-2">
-              <MessageSquare className="h-5 w-5 text-blue-600" />
+            <h3 className="text-lg font-semibold flex items-center gap-2 text-red-800">
+              <MessageSquare className="h-5 w-5 text-red-600" />
               Messages
             </h3>
             <div className="flex items-center gap-2">
-              <div
-                className={cn(
-                  'w-2 h-2 rounded-full',
-                  isConnected ? 'bg-green-500' : 'bg-red-500'
-                )}
-              />
+              {isConnected ? (
+                <Wifi className="h-4 w-4 text-green-500" />
+              ) : (
+                <WifiOff className="h-4 w-4 text-red-500" />
+              )}
               <span className="text-xs text-gray-500">
                 {isConnected ? 'Connected' : 'Connecting...'}
               </span>
@@ -258,7 +272,7 @@ export default function MessagingCenter({ assignments = [] }: MessagingCenterPro
               placeholder="Search conversations..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9"
+              className="pl-9 border-red-200 focus:border-red-400"
             />
           </div>
         </div>
@@ -290,9 +304,9 @@ export default function MessagingCenter({ assignments = [] }: MessagingCenterPro
                     if (user) handleSelectUser(user);
                   }}
                   className={cn(
-                    'p-4 border-b cursor-pointer hover:bg-gray-100 transition-colors',
+                    'p-4 border-b cursor-pointer hover:bg-red-100 transition-colors',
                     selectedUser?.id.toString() === conv.userId &&
-                      'bg-blue-50 border-l-4 border-l-blue-600'
+                      'bg-red-100 border-l-4 border-l-red-600'
                   )}
                 >
                   <div className="flex items-center gap-3">
@@ -301,7 +315,7 @@ export default function MessagingCenter({ assignments = [] }: MessagingCenterPro
                         <AvatarFallback
                           className={cn(
                             'text-white font-semibold',
-                            online ? 'bg-green-600' : 'bg-gray-600'
+                            online ? 'bg-red-600' : 'bg-gray-600'
                           )}
                         >
                           {getInitials(conv.username)}
@@ -316,7 +330,7 @@ export default function MessagingCenter({ assignments = [] }: MessagingCenterPro
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
-                        <p className="font-semibold text-sm truncate">
+                        <p className="font-semibold text-sm truncate text-red-800">
                           {conv.username}
                         </p>
                         <span className="text-xs text-gray-500 flex-shrink-0 ml-2">
@@ -328,7 +342,7 @@ export default function MessagingCenter({ assignments = [] }: MessagingCenterPro
                           {conv.lastMessage}
                         </p>
                         {unread > 0 && (
-                          <Badge className="bg-blue-600 text-white text-xs px-1.5 py-0.5 min-w-[1.25rem] h-5 flex items-center justify-center ml-2">
+                          <Badge className="bg-red-600 text-white text-xs px-1.5 py-0.5 min-w-[1.25rem] h-5 flex items-center justify-center ml-2">
                             {unread > 99 ? '99+' : unread}
                           </Badge>
                         )}
@@ -346,8 +360,8 @@ export default function MessagingCenter({ assignments = [] }: MessagingCenterPro
 
         {/* Available Users (if no conversations) */}
         {conversations.length === 0 && (
-          <div className="border-t">
-            <p className="text-xs font-semibold text-gray-600 p-3 bg-gray-100">
+          <div className="border-t border-red-200">
+            <p className="text-xs font-semibold text-red-700 p-3 bg-red-100">
               Available Users
             </p>
             <ScrollArea className="h-64">
@@ -357,7 +371,7 @@ export default function MessagingCenter({ assignments = [] }: MessagingCenterPro
                   <div
                     key={u.id}
                     onClick={() => handleSelectUser(u)}
-                    className="p-3 border-b cursor-pointer hover:bg-gray-100 transition-colors"
+                    className="p-3 border-b border-red-100 cursor-pointer hover:bg-red-50 transition-colors"
                   >
                     <div className="flex items-center gap-3">
                       <div className="relative">
@@ -365,7 +379,7 @@ export default function MessagingCenter({ assignments = [] }: MessagingCenterPro
                           <AvatarFallback
                             className={cn(
                               'text-white text-sm',
-                              online ? 'bg-green-600' : 'bg-gray-600'
+                              online ? 'bg-red-600' : 'bg-gray-600'
                             )}
                           >
                             {getInitials(u.username)}
@@ -379,7 +393,7 @@ export default function MessagingCenter({ assignments = [] }: MessagingCenterPro
                         />
                       </div>
                       <div>
-                        <p className="text-sm font-medium">{u.username}</p>
+                        <p className="text-sm font-medium text-red-800">{u.username}</p>
                         <p className="text-xs text-gray-500 capitalize">
                           {u.role}
                         </p>
@@ -398,14 +412,14 @@ export default function MessagingCenter({ assignments = [] }: MessagingCenterPro
         {selectedUser ? (
           <>
             {/* Chat Header */}
-            <div className="p-4 border-b bg-white flex items-center gap-3">
+            <div className="p-4 border-b bg-white border-red-200 flex items-center gap-3">
               <div className="relative">
                 <Avatar className="h-10 w-10 border-2 border-white">
                   <AvatarFallback
                     className={cn(
                       'text-white',
                       isUserOnline(selectedUser.id.toString())
-                        ? 'bg-green-600'
+                        ? 'bg-red-600'
                         : 'bg-gray-600'
                     )}
                   >
@@ -422,7 +436,7 @@ export default function MessagingCenter({ assignments = [] }: MessagingCenterPro
                 />
               </div>
               <div className="flex-1">
-                <h3 className="font-semibold">{selectedUser.username}</h3>
+                <h3 className="font-semibold text-red-800">{selectedUser.username}</h3>
                 <p className="text-xs text-gray-500">
                   {isUserOnline(selectedUser.id.toString()) ? (
                     <span className="text-green-600 flex items-center gap-1">
@@ -434,130 +448,135 @@ export default function MessagingCenter({ assignments = [] }: MessagingCenterPro
                   )}
                 </p>
               </div>
-              <Badge variant="outline" className="capitalize">
+              <Badge variant="outline" className="capitalize border-red-300 text-red-700">
                 {selectedUser.role}
               </Badge>
             </div>
 
-            {/* Messages */}
-            <ScrollArea className="flex-1 p-4 bg-gray-50">
-              {currentChatMessages.length === 0 ? (
-                <div className="flex items-center justify-center h-full text-gray-400">
-                  <div className="text-center">
-                    <MessageSquare className="h-16 w-16 mx-auto mb-2" />
-                    <p>No messages yet</p>
-                    <p className="text-sm mt-1">
-                      Start a conversation with {selectedUser.username}
-                    </p>
+            {/* Messages - FIXED HEIGHT AND SCROLLABLE */}
+            <div className="flex-1 flex flex-col min-h-0">
+              <ScrollArea className="flex-1 p-4 bg-red-25">
+                {currentChatMessages.length === 0 ? (
+                  <div className="flex items-center justify-center h-full text-gray-400">
+                    <div className="text-center">
+                      <MessageSquare className="h-16 w-16 mx-auto mb-2" />
+                      <p>No messages yet</p>
+                      <p className="text-sm mt-1">
+                        Start a conversation with {selectedUser.username}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {currentChatMessages.map((msg, index) => {
-                    const isMine = msg.senderId === user?.id.toString();
-                    const showDate =
-                      index === 0 ||
-                      new Date(msg.timestamp).toDateString() !==
-                        new Date(
-                          currentChatMessages[index - 1].timestamp
-                        ).toDateString();
+                ) : (
+                  <div className="space-y-4">
+                    {currentChatMessages.map((msg, index) => {
+                      const isMine = msg.senderId === user?.id.toString();
+                      const showDate =
+                        index === 0 ||
+                        new Date(msg.timestamp).toDateString() !==
+                          new Date(
+                            currentChatMessages[index - 1].timestamp
+                          ).toDateString();
 
-                    return (
-                      <div key={msg.id}>
-                        {showDate && (
-                          <div className="flex items-center justify-center my-4">
-                            <div className="bg-gray-200 text-gray-600 text-xs px-3 py-1 rounded-full">
-                              {new Date(msg.timestamp).toLocaleDateString(
-                                'en-US',
-                                { weekday: 'long', month: 'short', day: 'numeric' }
-                              )}
+                      return (
+                        <div key={msg.id}>
+                          {showDate && (
+                            <div className="flex items-center justify-center my-4">
+                              <div className="bg-red-200 text-red-700 text-xs px-3 py-1 rounded-full">
+                                {new Date(msg.timestamp).toLocaleDateString(
+                                  'en-US',
+                                  { weekday: 'long', month: 'short', day: 'numeric' }
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        )}
-                        <div
-                          className={cn(
-                            'flex',
-                            isMine ? 'justify-end' : 'justify-start'
                           )}
-                        >
                           <div
                             className={cn(
-                              'max-w-[70%] rounded-2xl px-4 py-2 shadow-sm',
-                              isMine
-                                ? 'bg-blue-600 text-white rounded-br-sm'
-                                : 'bg-white text-gray-800 rounded-bl-sm'
+                              'flex',
+                              isMine ? 'justify-end' : 'justify-start'
                             )}
                           >
-                            <p className="text-sm break-words">{msg.message}</p>
                             <div
                               className={cn(
-                                'flex items-center gap-1 mt-1',
-                                isMine ? 'justify-end' : 'justify-start'
+                                'max-w-[70%] rounded-2xl px-4 py-2 shadow-sm',
+                                isMine
+                                  ? 'bg-red-600 text-white rounded-br-sm'
+                                  : 'bg-white text-gray-800 rounded-bl-sm border border-red-100'
                               )}
                             >
-                              <span
+                              <p className="text-sm break-words">{msg.message}</p>
+                              <div
                                 className={cn(
-                                  'text-xs',
-                                  isMine ? 'text-blue-100' : 'text-gray-500'
+                                  'flex items-center gap-1 mt-1',
+                                  isMine ? 'justify-end' : 'justify-start'
                                 )}
                               >
-                                {formatTime(msg.timestamp)}
-                              </span>
-                              <MessageStatusIcon message={msg} />
+                                <span
+                                  className={cn(
+                                    'text-xs',
+                                    isMine ? 'text-red-100' : 'text-gray-500'
+                                  )}
+                                >
+                                  {formatTime(msg.timestamp)}
+                                </span>
+                                <MessageStatusIcon message={msg} />
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                  <div ref={messagesEndRef} />
-                </div>
-              )}
+                      );
+                    })}
+                    <div ref={messagesEndRef} />
+                  </div>
+                )}
 
-              {/* Typing Indicator */}
-              {typingUsers.has(selectedUser.id.toString()) && (
-                <div className="flex justify-start mt-4">
-                  <div className="bg-white rounded-2xl px-4 py-2 shadow-sm">
-                    <div className="flex gap-1">
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
-                      <div
-                        className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                        style={{ animationDelay: '0.2s' }}
-                      />
-                      <div
-                        className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                        style={{ animationDelay: '0.4s' }}
-                      />
+                {/* Typing Indicator */}
+                {typingUsers.has(selectedUser.id.toString()) && (
+                  <div className="flex justify-start mt-4">
+                    <div className="bg-white rounded-2xl px-4 py-2 shadow-sm border border-red-100">
+                      <div className="flex gap-1 items-center">
+                        <span className="text-xs text-red-600 mr-2">
+                          {selectedUser.username} is typing
+                        </span>
+                        <div className="w-2 h-2 bg-red-400 rounded-full animate-bounce" />
+                        <div
+                          className="w-2 h-2 bg-red-400 rounded-full animate-bounce"
+                          style={{ animationDelay: '0.2s' }}
+                        />
+                        <div
+                          className="w-2 h-2 bg-red-400 rounded-full animate-bounce"
+                          style={{ animationDelay: '0.4s' }}
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
-            </ScrollArea>
+                )}
+              </ScrollArea>
 
-            {/* Message Input */}
-            <div className="p-4 border-t bg-white">
-              <div className="flex gap-2">
-                <Input
-                  ref={inputRef}
-                  value={messageInput}
-                  onChange={handleInputChange}
-                  onKeyPress={handleKeyPress}
-                  placeholder={`Message ${selectedUser.username}...`}
-                  className="flex-1"
-                  disabled={!isConnected}
-                />
-                <Button
-                  onClick={handleSendMessage}
-                  disabled={!messageInput.trim() || !isConnected}
-                  className="bg-blue-600 hover:bg-blue-700"
-                >
-                  <Send className="h-4 w-4" />
-                </Button>
+              {/* Message Input */}
+              <div className="p-4 border-t bg-white border-red-200">
+                <div className="flex gap-2">
+                  <Input
+                    ref={inputRef}
+                    value={messageInput}
+                    onChange={handleInputChange}
+                    onKeyPress={handleKeyPress}
+                    placeholder={`Message ${selectedUser.username}...`}
+                    className="flex-1 border-red-200 focus:border-red-400"
+                    disabled={!isConnected}
+                  />
+                  <Button
+                    onClick={handleSendMessage}
+                    disabled={!messageInput.trim() || !isConnected}
+                    className="bg-red-600 hover:bg-red-700"
+                  >
+                    <Send className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </div>
           </>
         ) : (
-          <div className="flex items-center justify-center h-full bg-gray-50 text-gray-400">
+          <div className="flex items-center justify-center h-full bg-red-25 text-gray-400">
             <div className="text-center">
               <MessageSquare className="h-24 w-24 mx-auto mb-4" />
               <p className="text-lg font-medium">Select a conversation</p>
