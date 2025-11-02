@@ -9,6 +9,15 @@ import { WebSocketProvider } from './contexts/WebSocketContext';
 import LoginPage from './components/Auth/LoginPage';
 import MainLayout from './components/Layout/MainLayout';
 
+// Import Dashboard Components
+import TeacherDashboard from './components/Dashboard/TeacherDashboard';
+import StudentDashboard from './components/Dashboard/StudentDashboard';
+import AdminDashboard from './components/Dashboard/AdminDashboard';
+
+// Import Message Pages
+import TeacherMessages from './pages/Teacher/TeacherMessages';
+import StudentMessages from './pages/Student/StudentMessages';
+
 const queryClient = new QueryClient();
 
 function AppContent() {
@@ -32,10 +41,46 @@ function AppContent() {
           path="/login" 
           element={user ? <Navigate to="/" replace /> : <LoginPage />} 
         />
-        <Route 
-          path="/" 
-          element={user ? <MainLayout /> : <Navigate to="/login" replace />} 
-        />
+        
+        {/* Protected Routes with MainLayout */}
+        {user && (
+          <Route path="/" element={<MainLayout />}>
+            {/* Dashboard Routes */}
+            <Route 
+              index 
+              element={
+                user.role === 'teacher' ? <TeacherDashboard /> :
+                user.role === 'student' ? <StudentDashboard /> :
+                user.role === 'admin' ? <AdminDashboard /> :
+                <Navigate to="/login" replace />
+              } 
+            />
+            
+            {/* Teacher Routes */}
+            {user.role === 'teacher' && (
+              <>
+                <Route path="teacher/dashboard" element={<TeacherDashboard />} />
+                <Route path="teacher/messages" element={<TeacherMessages />} />
+              </>
+            )}
+            
+            {/* Student Routes */}
+            {user.role === 'student' && (
+              <>
+                <Route path="student/dashboard" element={<StudentDashboard />} />
+                <Route path="student/messages" element={<StudentMessages />} />
+              </>
+            )}
+            
+            {/* Admin Routes */}
+            {user.role === 'admin' && (
+              <>
+                <Route path="admin/dashboard" element={<AdminDashboard />} />
+              </>
+            )}
+          </Route>
+        )}
+        
         <Route 
           path="*" 
           element={<Navigate to={user ? "/" : "/login"} replace />} 

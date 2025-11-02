@@ -1,3 +1,4 @@
+// Cinderella-school\src\components\Layout\MainLayout.tsx
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import Sidebar from './Sidebar';
@@ -13,12 +14,14 @@ import TeacherSubmissions from '../../pages/Teacher/TeacherSubmissions';
 import TeacherStudents from '../../pages/Teacher/TeacherStudents';
 import TeacherCalendar from '../../pages/Teacher/TeacherCalendar';
 import TeacherActivity from '../../pages/Teacher/TeacherActivity';
+import TeacherMessages from '../../pages/Teacher/TeacherMessages';
 
 import StudentAssignments from '../../pages/Student/StudentAssignments';
 import StudentSubmissions from '../../pages/Student/StudentSubmissions';
 import StudentCalendar from '../../pages/Student/StudentCalendar';
 import StudentActivity from '../../pages/Student/StudentActivity';
 import StudentHelp from '../../pages/Student/StudentHelp';
+import StudentMessages from '../../pages/Student/StudentMessages';
 
 export default function MainLayout() {
   const { user } = useAuth();
@@ -71,6 +74,8 @@ export default function MainLayout() {
             return <TeacherCalendar />;
           case 'activity':
             return <TeacherActivity />;
+          case 'messages':
+            return <TeacherMessages />;
           default:
             return <TeacherDashboard />;
         }
@@ -89,6 +94,8 @@ export default function MainLayout() {
             return <StudentActivity />;
           case 'help':
             return <StudentHelp />;
+          case 'messages':
+            return <StudentMessages />;
           default:
             return <StudentDashboard />;
         }
