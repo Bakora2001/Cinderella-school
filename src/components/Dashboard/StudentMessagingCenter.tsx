@@ -7,22 +7,11 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Send, Plus, Search, MessageSquare, User } from 'lucide-react';
+import { Send, Plus, Search, MessageSquare, User, Check, CheckCheck, Circle } from 'lucide-react';
 import { useWebSocket } from '../../contexts/WebSocketContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import MessagingCenter from './MessagingCenter';
-
-
-
-interface StudentMessagingCenterProps {
-  assignments?: Array<{
-    id: string;
-    title: string;
-    teacherId: string;
-    teacherName: string;
-  }>;
-}
+import { cn } from '@/lib/utils';
 
 interface AvailableUser {
   id: string;
@@ -56,7 +45,9 @@ export default function StudentMessagingCenter({ assignments = [] }: StudentMess
     markAsRead,
     startTyping,
     stopTyping,
-    clearMessages,
+    conversations,
+    getUnreadCount,
+    isUserOnline,
   } = useWebSocket();
 
   const [selectedUser, setSelectedUser] = useState<AvailableUser | null>(null);
@@ -64,26 +55,28 @@ export default function StudentMessagingCenter({ assignments = [] }: StudentMess
   const [searchTerm, setSearchTerm] = useState('');
   const [isNewChatOpen, setIsNewChatOpen] = useState(false);
   const [availableUsers, setAvailableUsers] = useState<AvailableUser[]>([]);
-  const [conversations, setConversations] = useState<AvailableUser[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch available users (teachers and admins only for students)
   useEffect(() => {
     const fetchAvailableUsers = async () => {
       if (!user?.id) return;
 
       try {
-        const response = await fetch(
-          `http://localhost:5000/api/websocketschat/available-users/${user.id}/${user.role}`
-        );
+        const response = await fetch('http://localhost:5000/api/users/getallusers');
         const data = await response.json();
 
         if (data.success) {
-          // Students should only see teachers and admins
-          const filteredUsers = data.users.filter(
-            (u: AvailableUser) => u.role === 'teacher' || u.role === 'admin'
-          );
+          const filteredUsers = data.users
+            .filter((u: any) => u.role === 'teacher' || u.role === 'admin')
+            .map((u: any) => ({
+              id: u.id.toString(),
+              username: `${u.firstname || ''} ${u.sirname || ''}`.trim() || u.email.split('@')[0],
+              email: u.email,
+              role: u.role,
+              class_name: u.class,
+            }));
           setAvailableUsers(filteredUsers);
         }
       } catch (error) {
@@ -97,48 +90,23 @@ export default function StudentMessagingCenter({ assignments = [] }: StudentMess
     };
 
     fetchAvailableUsers();
-  }, [user?.id, user?.role, toast]);
+  }, [user?.id, toast]);
 
-  // Fetch conversations
-  useEffect(() => {
-    const fetchConversations = async () => {
-      if (!user?.id) return;
-
-      try {
-        const response = await fetch(
-          `http://localhost:5000/api/websocketschat/conversations/${user.id}`
-        );
-        const data = await response.json();
-
-        if (data.success) {
-          setConversations(
-            data.conversations.map((conv: any) => ({
-              id: conv.userId,
-              username: conv.username,
-              email: conv.email,
-              role: conv.role,
-            }))
-          );
-        }
-      } catch (error) {
-        console.error('Error fetching conversations:', error);
-      }
-    };
-
-    fetchConversations();
-  }, [user?.id, messages]);
-
-  // Scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Mark messages as read when conversation is selected
   useEffect(() => {
     if (selectedUser) {
       markAsRead(selectedUser.id);
     }
   }, [selectedUser, markAsRead]);
+
+  useEffect(() => {
+    if (selectedUser && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [selectedUser]);
 
   const handleUserSelect = (selectedUserData: AvailableUser) => {
     setSelectedUser(selectedUserData);
@@ -199,17 +167,8 @@ export default function StudentMessagingCenter({ assignments = [] }: StudentMess
 
     if (diffInMinutes < 1) return 'Just now';
     if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
-    if (diffInMinutes < 1440)
-      return `${Math.floor(diffInMinutes / 60)}h ago`;
+    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`;
     return messageDate.toLocaleDateString();
-  };
-
-  const isUserOnline = (userId: string) => {
-    return onlineUsers.some((u) => u.userId === userId);
-  };
-
-  const isUserTyping = (userId: string) => {
-    return typingUsers.has(userId);
   };
 
   const filteredAvailableUsers = availableUsers.filter((u) =>
@@ -218,7 +177,6 @@ export default function StudentMessagingCenter({ assignments = [] }: StudentMess
     u.role.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Group users by role
   const teachersAndAdmins = filteredAvailableUsers.reduce((acc, user) => {
     const key = user.role === 'admin' ? 'Administrators' : 'Teachers';
     if (!acc[key]) acc[key] = [];
@@ -228,16 +186,41 @@ export default function StudentMessagingCenter({ assignments = [] }: StudentMess
 
   const conversationsList = conversations.map((conv) => ({
     ...conv,
-    isOnline: isUserOnline(conv.id),
+    isOnline: isUserOnline(conv.userId),
   }));
 
+  const currentChatMessages = selectedUser
+    ? messages.filter(
+        (msg) =>
+          (msg.senderId === user?.id.toString() &&
+            msg.receiverId === selectedUser.id) ||
+          (msg.senderId === selectedUser.id &&
+            msg.receiverId === user?.id.toString())
+      )
+    : [];
+
+  const MessageStatusIcon = ({ message }: { message: any }) => {
+    if (message.senderId !== user?.id.toString()) return null;
+
+    if (message.status === 'read' || message.isRead) {
+      return <CheckCheck className="h-3 w-3 text-blue-500" />;
+    }
+    if (message.status === 'delivered') {
+      return <CheckCheck className="h-3 w-3 text-gray-400" />;
+    }
+    return <Check className="h-3 w-3 text-gray-400" />;
+  };
+
   return (
-    <div className="flex h-full gap-4">
+    <div className="flex h-[600px] gap-4">
       {/* Conversations List */}
       <Card className="w-1/3 flex flex-col">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-lg">Messages</CardTitle>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <MessageSquare className="h-5 w-5 text-blue-600" />
+              Messages
+            </CardTitle>
             <Dialog open={isNewChatOpen} onOpenChange={setIsNewChatOpen}>
               <DialogTrigger asChild>
                 <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
@@ -278,7 +261,7 @@ export default function StudentMessagingCenter({ assignments = [] }: StudentMess
                               <div
                                 key={availableUser.id}
                                 onClick={() => handleUserSelect(availableUser)}
-                                className="flex items-center gap-3 p-3 hover:bg-gray-100 rounded-lg cursor-pointer mb-2"
+                                className="flex items-center gap-3 p-3 hover:bg-blue-100 rounded-lg cursor-pointer mb-2"
                               >
                                 <div className="relative">
                                   <Avatar>
@@ -307,7 +290,7 @@ export default function StudentMessagingCenter({ assignments = [] }: StudentMess
                                     variant="outline"
                                     className={`text-xs capitalize ${
                                       availableUser.role === 'admin'
-                                        ? 'bg-red-50 text-red-700 border-red-300'
+                                        ? 'bg-purple-50 text-purple-700 border-purple-300'
                                         : 'bg-blue-50 text-blue-700 border-blue-300'
                                     }`}
                                   >
@@ -352,47 +335,69 @@ export default function StudentMessagingCenter({ assignments = [] }: StudentMess
                 </p>
               </div>
             ) : (
-              conversationsList.map((conv) => (
-                <div
-                  key={conv.id}
-                  onClick={() => handleUserSelect(conv)}
-                  className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer mb-2 transition-colors ${
-                    selectedUser?.id === conv.id
-                      ? 'bg-blue-50 border border-blue-200'
-                      : 'hover:bg-gray-100'
-                  }`}
-                >
-                  <div className="relative">
-                    <Avatar>
-                      <AvatarFallback
-                        className={`${
-                          conv.isOnline ? 'bg-green-600' : 'bg-gray-600'
-                        } text-white`}
-                      >
-                        {getInitials(conv.username)}
-                      </AvatarFallback>
-                    </Avatar>
-                    {conv.isOnline && (
-                      <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+              conversationsList.map((conv) => {
+                const unread = getUnreadCount(conv.userId);
+                return (
+                  <div
+                    key={conv.userId}
+                    onClick={() => {
+                      const user = availableUsers.find(u => u.id === conv.userId);
+                      if (user) handleUserSelect(user);
+                    }}
+                    className={cn(
+                      'flex items-center gap-3 p-3 rounded-lg cursor-pointer mb-2 transition-colors',
+                      selectedUser?.id === conv.userId
+                        ? 'bg-blue-50 border border-blue-200'
+                        : 'hover:bg-gray-100'
                     )}
+                  >
+                    <div className="relative">
+                      <Avatar>
+                        <AvatarFallback
+                          className={`${
+                            conv.isOnline ? 'bg-green-600' : 'bg-gray-600'
+                          } text-white`}
+                        >
+                          {getInitials(conv.username)}
+                        </AvatarFallback>
+                      </Avatar>
+                      {conv.isOnline && (
+                        <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <p className="font-medium text-sm truncate">
+                          {conv.username}
+                        </p>
+                        <span className="text-xs text-gray-500 flex-shrink-0 ml-2">
+                          {formatTime(conv.timestamp)}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between mt-1">
+                        <p className="text-xs text-gray-600 truncate flex-1">
+                          {conv.lastMessage}
+                        </p>
+                        {unread > 0 && (
+                          <Badge className="bg-blue-600 text-white text-xs px-1.5 py-0.5 min-w-[1.25rem] h-5 flex items-center justify-center ml-2">
+                            {unread > 99 ? '99+' : unread}
+                          </Badge>
+                        )}
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className={`text-xs capitalize mt-1 ${
+                          conv.role === 'admin'
+                            ? 'bg-purple-50 text-purple-700 border-purple-300'
+                            : 'bg-blue-50 text-blue-700 border-blue-300'
+                        }`}
+                      >
+                        {conv.role}
+                      </Badge>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm truncate">
-                      {conv.username}
-                    </p>
-                    <Badge
-                      variant="outline"
-                      className={`text-xs capitalize mt-1 ${
-                        conv.role === 'admin'
-                          ? 'bg-red-50 text-red-700 border-red-300'
-                          : 'bg-blue-50 text-blue-700 border-blue-300'
-                      }`}
-                    >
-                      {conv.role}
-                    </Badge>
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </ScrollArea>
         </CardContent>
@@ -404,17 +409,22 @@ export default function StudentMessagingCenter({ assignments = [] }: StudentMess
           <>
             <CardHeader className="pb-3 border-b">
               <div className="flex items-center gap-3">
-                <Avatar>
-                  <AvatarFallback
-                    className={`${
-                      selectedUser.role === 'admin'
-                        ? 'bg-red-600'
-                        : 'bg-blue-600'
-                    } text-white`}
-                  >
-                    {getInitials(selectedUser.username)}
-                  </AvatarFallback>
-                </Avatar>
+                <div className="relative">
+                  <Avatar>
+                    <AvatarFallback
+                      className={`${
+                        selectedUser.role === 'admin'
+                          ? 'bg-purple-600'
+                          : 'bg-blue-600'
+                      } text-white`}
+                    >
+                      {getInitials(selectedUser.username)}
+                    </AvatarFallback>
+                  </Avatar>
+                  {isUserOnline(selectedUser.id) && (
+                    <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+                  )}
+                </div>
                 <div className="flex-1">
                   <h3 className="font-semibold">{selectedUser.username}</h3>
                   <div className="flex items-center gap-2">
@@ -422,7 +432,7 @@ export default function StudentMessagingCenter({ assignments = [] }: StudentMess
                       variant="outline"
                       className={`text-xs capitalize ${
                         selectedUser.role === 'admin'
-                          ? 'bg-red-50 text-red-700 border-red-300'
+                          ? 'bg-purple-50 text-purple-700 border-purple-300'
                           : 'bg-blue-50 text-blue-700 border-blue-300'
                       }`}
                     >
@@ -430,7 +440,7 @@ export default function StudentMessagingCenter({ assignments = [] }: StudentMess
                     </Badge>
                     {isUserOnline(selectedUser.id) && (
                       <span className="text-xs text-green-600 flex items-center gap-1">
-                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <Circle className="h-2 w-2 fill-current" />
                         Online
                       </span>
                     )}
@@ -440,7 +450,7 @@ export default function StudentMessagingCenter({ assignments = [] }: StudentMess
             </CardHeader>
             <CardContent className="flex-1 flex flex-col p-4">
               <ScrollArea className="flex-1 pr-4 mb-4">
-                {messages.length === 0 ? (
+                {currentChatMessages.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
                     <MessageSquare className="h-12 w-12 mx-auto mb-2 text-gray-300" />
                     <p className="text-sm">No messages yet</p>
@@ -450,46 +460,76 @@ export default function StudentMessagingCenter({ assignments = [] }: StudentMess
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {messages.map((msg) => {
-                      const isMe = msg.senderId === user?.id;
+                    {currentChatMessages.map((msg, index) => {
+                      const isMe = msg.senderId === user?.id.toString();
+                      const showDate =
+                        index === 0 ||
+                        new Date(msg.timestamp).toDateString() !==
+                          new Date(
+                            currentChatMessages[index - 1].timestamp
+                          ).toDateString();
+
                       return (
-                        <div
-                          key={msg.id}
-                          className={`flex ${
-                            isMe ? 'justify-end' : 'justify-start'
-                          }`}
-                        >
+                        <div key={msg.id}>
+                          {showDate && (
+                            <div className="flex items-center justify-center my-4">
+                              <div className="bg-gray-200 text-gray-600 text-xs px-3 py-1 rounded-full">
+                                {new Date(msg.timestamp).toLocaleDateString(
+                                  'en-US',
+                                  { weekday: 'long', month: 'short', day: 'numeric' }
+                                )}
+                              </div>
+                            </div>
+                          )}
                           <div
-                            className={`max-w-[70%] rounded-lg p-3 ${
-                              isMe
-                                ? 'bg-blue-600 text-white'
-                                : 'bg-gray-100 text-gray-900'
-                            }`}
+                            className={cn(
+                              'flex',
+                              isMe ? 'justify-end' : 'justify-start'
+                            )}
                           >
-                            <p className="text-sm">{msg.message}</p>
-                            <p
-                              className={`text-xs mt-1 ${
-                                isMe ? 'text-blue-100' : 'text-gray-500'
-                              }`}
+                            <div
+                              className={cn(
+                                'max-w-[70%] rounded-2xl px-4 py-2 shadow-sm',
+                                isMe
+                                  ? 'bg-blue-600 text-white rounded-br-sm'
+                                  : 'bg-white text-gray-800 rounded-bl-sm border'
+                              )}
                             >
-                              {formatTime(msg.timestamp)}
-                            </p>
+                              <p className="text-sm break-words">{msg.message}</p>
+                              <div
+                                className={cn(
+                                  'flex items-center gap-1 mt-1',
+                                  isMe ? 'justify-end' : 'justify-start'
+                                )}
+                              >
+                                <span
+                                  className={cn(
+                                    'text-xs',
+                                    isMe ? 'text-blue-100' : 'text-gray-500'
+                                  )}
+                                >
+                                  {formatTime(msg.timestamp)}
+                                </span>
+                                <MessageStatusIcon message={msg} />
+                              </div>
+                            </div>
                           </div>
                         </div>
                       );
                     })}
-                    {isUserTyping(selectedUser.id) && (
+                    {typingUsers.has(selectedUser.id) && (
                       <div className="flex justify-start">
-                        <div className="bg-gray-100 rounded-lg p-3">
-                          <div className="flex gap-1">
+                        <div className="bg-white rounded-2xl px-4 py-2 shadow-sm border">
+                          <div className="flex gap-1 items-center">
+                            <span className="text-xs text-gray-500 mr-2">typing</span>
                             <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
                             <div
                               className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                              style={{ animationDelay: '0.1s' }}
+                              style={{ animationDelay: '0.2s' }}
                             ></div>
                             <div
                               className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                              style={{ animationDelay: '0.2s' }}
+                              style={{ animationDelay: '0.4s' }}
                             ></div>
                           </div>
                         </div>
@@ -501,6 +541,7 @@ export default function StudentMessagingCenter({ assignments = [] }: StudentMess
               </ScrollArea>
               <div className="flex gap-2">
                 <Input
+                  ref={inputRef}
                   value={messageInput}
                   onChange={handleTyping}
                   onKeyPress={handleKeyPress}
