@@ -178,7 +178,7 @@ export default function StudentMessages() {
             </div>
           </div>
         </CardContent>
-      </Card>
+      </Card>ear
 
       {/* Help Section */}
       <Card className="bg-gradient-to-r from-gray-50 to-blue-50 border-gray-200 shadow-lg">
